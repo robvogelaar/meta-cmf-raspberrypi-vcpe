@@ -1,0 +1,70 @@
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+
+auto eth0
+iface eth0 inet static
+    address 10.10.10.200
+    netmask 255.255.255.0
+
+    gateway 10.10.10.1
+
+    #the below does not work due to missing resolvconf
+    #dns-nameservers 10.10.10.1
+
+    #cust 7
+    post-up ip route add 10.107.200.0/24 via 10.10.10.107
+
+    #cust 8
+    post-up ip route add 10.108.200.0/24 via 10.10.10.108
+
+    #cust 9 : mg0 / erouter0
+    post-up ip route add 10.177.200.0/24 via 10.10.10.109
+    post-up ip route add 10.178.200.0/24 via 10.10.10.109
+
+    #cust 20
+    post-up ip route add 10.120.200.0/24 via 10.10.10.120
+
+
+    #single vlan
+    post-up ip route add 10.100.200.0/24 via 10.10.10.100
+
+    post-up echo "nameserver 10.10.10.1" >> /etc/resolv.conf
+
+iface eth0 inet6 static
+    address 2001:dbf:0:1::200
+    netmask 64
+
+    gateway 2001:dbf:0:1::1
+
+    #the below does not work due to missing resolvconf
+    #dns-nameservers 2001:dbf:0:1::1
+
+    #despite disabling ra_accept, ra route still appears,
+    #delete to prevent duplicate and exists error preventing
+    #the bng routes to be populated
+    pre-up ip -6 route show | awk '/proto ra/ { print $1 }' | xargs -r -I {} ip -6 route del {}
+
+
+    #cust 7
+    post-up ip -6 route add 2001:dae:7:1::/64 via 2001:dbf:0:1::107
+
+    #cust 8
+    post-up ip -6 route add 2001:dae:8:1::/64 via 2001:dbf:0:1::108
+
+    #cust 9 : mg0 / erouter0
+    post-up ip -6 route add 2001:dbd:0:1::/64 via 2001:dbf:0:1::109
+    post-up ip -6 route add 2001:dbe:0:1::/64 via 2001:dbf:0:1::109
+
+    #cust 20
+    post-up ip -6 route add 2001:dae:20:1::/64 via 2001:dbf:0:1::120
+
+    #single vlan
+    post-up ip -6 route add 2001:dae:0:1::/64 via 2001:dbf:0:1::100
+
+    post-up echo "nameserver 2001:dbf:0:1::1" >> /etc/resolv.conf
