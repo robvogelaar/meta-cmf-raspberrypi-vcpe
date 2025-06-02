@@ -1,0 +1,25 @@
+From 873576fe63149e89f3b69d03b7c8d1dc269483a1 Mon Sep 17 00:00:00 2001
+From: Rob Vogelaar <revogelaar@gmail.com>
+Date: Sat, 31 May 2025 16:41:34 -0700
+Subject: [PATCH] no autoconf.h
+
+Signed-off-by: Rob Vogelaar <revogelaar@gmail.com>
+---
+ source/parodusStart/start_parodus.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/source/parodusStart/start_parodus.c b/source/parodusStart/start_parodus.c
+index acc0e73..1fcfc16 100644
+--- a/source/parodusStart/start_parodus.c
++++ b/source/parodusStart/start_parodus.c
+@@ -41,7 +41,6 @@
+ #include <limits.h>
+ #include <math.h>
+ #if !(_COSA_BCM_MIPS_ || _COSA_DRG_TPG_ || CONFIG_CISCO)
+-#include <autoconf.h>
+ #endif
+ #include "cJSON.h"
+ #include "safec_lib_common.h"
+-- 
+2.25.1
+

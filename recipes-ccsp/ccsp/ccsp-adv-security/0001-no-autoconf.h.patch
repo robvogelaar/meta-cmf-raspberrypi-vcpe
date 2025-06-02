@@ -1,0 +1,25 @@
+From c16b79d19d42b28589712319aa66fc70cfd3e76e Mon Sep 17 00:00:00 2001
+From: Rob Vogelaar <revogelaar@gmail.com>
+Date: Sat, 31 May 2025 16:32:54 -0700
+Subject: [PATCH] no autoconf.h
+
+Signed-off-by: Rob Vogelaar <revogelaar@gmail.com>
+---
+ source/AdvSecurityDml/cosa_adv_security_internal.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/source/AdvSecurityDml/cosa_adv_security_internal.c b/source/AdvSecurityDml/cosa_adv_security_internal.c
+index aaf057c..e2a5b46 100644
+--- a/source/AdvSecurityDml/cosa_adv_security_internal.c
++++ b/source/AdvSecurityDml/cosa_adv_security_internal.c
+@@ -49,7 +49,6 @@
+ #include <ccsp/cm_hal.h>
+ #endif
+ #if !(_COSA_BCM_MIPS_ || _COSA_DRG_TPG_ || CONFIG_CISCO)
+-#include <autoconf.h>
+ #endif
+ 
+ #ifdef WIFI_DATA_COLLECTION
+-- 
+2.25.1
+

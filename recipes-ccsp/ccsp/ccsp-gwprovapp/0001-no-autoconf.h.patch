@@ -1,0 +1,25 @@
+From a79c6010ac8050fa503bd2c6e0c46061e2be54ac Mon Sep 17 00:00:00 2001
+From: Rob Vogelaar <revogelaar@gmail.com>
+Date: Sat, 31 May 2025 16:46:32 -0700
+Subject: [PATCH] no autoconf.h
+
+Signed-off-by: Rob Vogelaar <revogelaar@gmail.com>
+---
+ source/gw_prov_sm_generic.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/source/gw_prov_sm_generic.c b/source/gw_prov_sm_generic.c
+index 43cce40..da2a4c1 100644
+--- a/source/gw_prov_sm_generic.c
++++ b/source/gw_prov_sm_generic.c
+@@ -69,7 +69,6 @@
+ #include <syscfg/syscfg.h>
+ #include <pthread.h>
+ #include "Tr69_Tlv.h"
+-#include <autoconf.h>
+ #ifdef AUTOWAN_ENABLE
+ #include "autowan.h"
+ #include "gw_prov_sm.h"
+-- 
+2.25.1
+
