@@ -1,0 +1,27 @@
+From 049ea620c28d5a376cbe0e6290784686d5cfa95d Mon Sep 17 00:00:00 2001
+From: Rob Vogelaar <revogelaar@gmail.com>
+Date: Fri, 6 Jun 2025 17:22:05 -0700
+Subject: [PATCH] tr69_filter ACCEPT
+
+Signed-off-by: Rob Vogelaar <revogelaar@gmail.com>
+---
+ source/firewall/firewall_interface.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/source/firewall/firewall_interface.c b/source/firewall/firewall_interface.c
+index 1a078b97d..857e39f6a 100644
+--- a/source/firewall/firewall_interface.c
++++ b/source/firewall/firewall_interface.c
+@@ -115,6 +115,9 @@ __attribute__((weak))
+ void do_tr69_whitelistTable(FILE *filt_fp, int family)
+ {
+     FIREWALL_DEBUG("Entering do_tr69_whitelistTable\n");
++
++    fprintf(filt_fp, "-A tr69_filter -j ACCEPT\n");
++
+     FIREWALL_DEBUG("Exiting do_tr69_whitelistTable\n");
+ }
+ 
+-- 
+2.25.1
+

@@ -1,0 +1,41 @@
+From 6eb00d50ee515f77ad9a65786a3c50275ee7cdd5 Mon Sep 17 00:00:00 2001
+From: Rob Vogelaar <revogelaar@gmail.com>
+Date: Thu, 5 Jun 2025 10:39:06 -0700
+Subject: [PATCH] Add missing pclose()
+
+Signed-off-by: Rob Vogelaar <revogelaar@gmail.com>
+---
+ source/hal-ethsw/ccsp_hal_ethsw.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/source/hal-ethsw/ccsp_hal_ethsw.c b/source/hal-ethsw/ccsp_hal_ethsw.c
+index a3b8378..acd3029 100755
+--- a/source/hal-ethsw/ccsp_hal_ethsw.c
++++ b/source/hal-ethsw/ccsp_hal_ethsw.c
+@@ -529,6 +529,7 @@ CcspHalEthSwGetPortAdminStatus
+     if(!(fp = popen("readlink -f /sys/class/net/eth1", "r")))
+         return RETURN_ERR;
+     fgets(port_id, sizeof(port_id), fp);
++    pclose(fp);
+     if((p=strstr(port_id, val1))){
+         p=strtok(p, "-:");
+         port_num = atoi(p);
+@@ -618,6 +619,7 @@ CcspHalEthSwSetPortAdminStatus
+         return  RETURN_ERR;
+     fgets(port_id,sizeof(port_id),fp);
+ 
++    pclose(fp);
+     if((p=strstr(port_id, val1))){
+         p=strtok(p, "-:");
+         port_num = atoi(p);
+@@ -721,6 +723,7 @@ static int get_port_number()
+     if(!(fp = popen("readlink -f /sys/class/net/eth1", "r")))
+         return RETURN_ERR;
+     fgets(port_id, sizeof(port_id), fp);
++    pclose(fp);
+     if((p=strstr(port_id, val1))){
+         p=strtok(p, "-:");
+         port_num = atoi(p);
+-- 
+2.25.1
+
