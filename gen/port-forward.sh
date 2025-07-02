@@ -1,12 +1,20 @@
 #!/bin/bash
 
 ###############################################################################################
-# acs:
+# acs (axiros):
 #       10.10.10.200 | 2001:dbf:0:1::200 (eth0)
 #       ssh -L 192.168.2.120:8888:10.10.10.200:80 rev@192.168.2.120
 #
 # ui:
 #       http://192.168.2.120:8888
+#
+###############################################################################################
+# acs (genie):
+#       10.10.10.201 | 2001:dbf:0:1::201 (eth0)
+#       ssh -L 192.168.2.120:3003:10.10.10.200:3000 rev@192.168.2.120
+#
+# ui:
+#       http://192.168.2.120:3003
 #
 ###############################################################################################
 # webpa:
@@ -78,7 +86,8 @@ host=$2
 
 # Create SSH tunnel with multiple port forwards
 echo "Creating SSH tunnels..."
-echo "ACS UI will be available at: http://$host:8888"
+echo "ACS (Axiros) UI will be available at: http://$host:8888"
+echo "ACS (Genie) UI will be available at: http://$host:3003"
 echo "Oktopus UI will be available at: http://$host:7777"
 echo "Automatics UI will be available at: http://$host:5555"
 echo "XConf UI will be available at: http://$host:19093"
@@ -86,6 +95,7 @@ echo "Telemetry UI will be available at: http://$host:5601"
 echo ""
 
 ssh -L $host:8888:10.10.10.200:80 \
+    -L $host:3003:10.10.10.201:3000 \
     -L $host:7777:10.10.10.220:80 \
     -L $host:5555:10.10.10.240:8080 \
     -L $host:19093:10.10.10.250:19093 \

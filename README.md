@@ -18,7 +18,7 @@ lan clients (alpine) connect to a cpe lan port via the lan-p1 (/2/3/4) bridges (
 
 wlan clients (alpine) connect their wlan0 80211sim sta to 80211sim ap in the cpe. automatically configured with wpa_supplicant and dhcp.
 
-## acs container (tr069)
+## acs (axiros / genie) container (tr069)
 
 The acs container (debian 7) contains an Axiros tr069 cwmp server stack. cpe containers will register and establish the tr069 protocol with the acs. In addition to the acs-ui, auto testing via (soap) is available as well. The Axiros acs image is available to licensees only.
 
@@ -141,26 +141,30 @@ bridges.sh
 
 ## Install ACS container
 
-Run the acs.sh script:
+Run the acs.sh / genieacs.sh script:
 
 Note: as part of the acs container creation, an encrypted Axiros container image is obtained from dropbox available to licensees only.
 
 ```text
 acs.sh
+genieacs.sh
 
 lxc list
-+------+---------+------------------------+----------------------------------------------+-
-| acs  | RUNNING | 10.10.10.200 (eth0)    | 2001:dbf:0:1::200 (eth0)                     | 
-|      |         |                        | 2001:dbf:0:1:216:3eff:fe38:11ab (eth0)       | 
-+------+---------+------------------------+----------------------------------------------+-
++-----------+---------+------------------------+----------------------------------------------+
+| acs       | RUNNING | 10.10.10.200 (eth0)    | 2001:dbf:0:1::200 (eth0)                     |
+|           |         |                        | 2001:dbf:0:1:216:3eff:fe38:11ab (eth0)       |
++-----------+---------+------------------------+----------------------------------------------+
+| genieacs  | RUNNING | 10.10.10.201 (eth0)    | 2001:dbf:0:1::201 (eth0)                     |
+|           |         |                        | 2001:dbf:0:1:216:3eff:fe38:11ac (eth0)       |
++-----------+---------+------------------------+----------------------------------------------+
 ```
 
-the acs UI will be at 10.10.10.200:80
+the axiros acs UI will be at 10.10.10.200:80
+the genie acs UI will be at 10.10.10.201:3000
 
 ## Install Oktopus container
 
 Run the oktopus.sh script:
-
 
 ```text
 oktopus.sh
