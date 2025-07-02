@@ -29,6 +29,12 @@ name: boardfarm
 description: "boardfarm"
 config:
     boot.autostart: "false"
+    raw.lxc: |
+      lxc.apparmor.profile=unconfined
+      lxc.cgroup.devices.allow = a
+    security.privileged: "true"
+    security.nesting: "true"
+
     limits.cpu: ""      # "" effectively means no CPU limits, allowing access to all available CPUs
     limits.memory: ""   #
 devices:
@@ -66,15 +72,5 @@ lxc exec ${container_name} -- netplan apply
 ########################################################################################
 #
 
-lxc exec ${container_name} -- bash -c '
-    apt update
-    apt install -y apt-transport-https ca-certificates curl gnupg lsb-release
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-    apt update
-    apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    systemctl enable docker
-    systemctl start docker
-    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-'
+# lxc exec ${container_name} -- docker-compose -f boardfarm/resources/deploy/prplos/docker-compose.yaml up -d
+
