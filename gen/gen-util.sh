@@ -646,6 +646,7 @@ main() {
     bridges="
             lxdbr1 \
             wan \
+            cm \
             lan-p1 lan-p2 lan-p3 lan-p4 \
         "
 
@@ -655,8 +656,7 @@ main() {
         check_and_create_bridges
     fi
 
-    # do not recreate virt wlan's
-    # check_and_create_virt_wlan
+    check_and_create_virt_wlan
 
 }
 
