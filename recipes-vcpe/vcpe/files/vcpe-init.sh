@@ -1,7 +1,5 @@
 #!/bin/sh
 
-. /etc/vcpe-config.sh
-
 export HOME=/home/root
 
 # mount rdklogs to tmpfs

@@ -33,6 +33,13 @@ containername="vcpe"
 profilename="vcpe"
 volumename="${containername}-nvram"
 
+eth0_mac="00:16:3e:20:79:68"
+eth1_mac="00:16:3e:16:5f:7c"
+
+#
+lxc delete ${containername} -f 2>/dev/null
+
+
 #
 sudo bridge vlan add vid 100 dev lan-p1 self
 
@@ -48,25 +55,37 @@ lxc image import $imagefile --alias ${imagename}
 lxc profile create "$profilename" 2>/dev/null || true
 lxc profile edit "$profilename" < "$M_ROOT/gen/profiles/$profilename.yaml"
 
+# eth0 interface
+lxc profile device add "$profilename" eth0 nic \
+    nictype=bridged \
+    parent=wan \
+    hwaddr=$eth0_mac \
+    name=eth0 \
+    > /dev/null
+
+# eth1 interface  
+lxc profile device add "$profilename" eth1 nic \
+    nictype=bridged \
+    parent=lan-p1 \
+    hwaddr=$eth1_mac \
+    name=eth1 \
+    vlan=100 \
+    > /dev/null
+
 
 # Initialize the container without starting it
-lxc delete ${containername} -f > /dev/null 2>&1
+
 lxc init ${imagename} ${containername} -p ${profilename}
 
 # Create a custom configuration file
-cat << EOF > ./vcpe-config.sh
-# This is a custom configuration file
-CONTAINER_NAME=${containername}
-SETUP_DATE=$(date +"%Y-%m-%d_%H:%M:%S")
-CUSTOM_CONFIG=true
+cat << EOF > ./vcpe-config
+CREATION_DATE=$(date +"%Y-%m-%d_%H:%M:%S")
+SERIAL_NUMBER=$(echo ${eth0_mac//:/} | tr '[:lower:]' '[:upper:]')
+HARDWARE_VERSION=1.0
 EOF
 
-# Push the configuration file to the container
-lxc file push ./vcpe-config.sh ${containername}/etc/vcpe-config.sh
+lxc file push ./vcpe-config ${containername}/etc/vcpe-config
+rm -f ./vcpe-config
 
-# Clean up temporary file
-rm -f ./vcpe-config.sh
-
-# Now start the container
+# Start the container
 lxc start ${containername}
-
