@@ -7,7 +7,7 @@ mkdir -p /rdklogs
 mount -t tmpfs -o size=128m tmpfs /rdklogs
 
 # webpa: server ip
-sed -i 's|SERVERURL=https://webpa.rdkcentral.com:8080|SERVERURL=http://10.10.10.210|' /etc/device.properties
+sed -i 's|SERVERURL=https://webpa.rdkcentral.com:8080|SERVERURL=http://10.10.10.210:8080|' /etc/device.properties
 
 # usp-pa
 sed -i 's/127\.0\.0\.1/10.10.10.220/g' /etc/usp-pa/oktopus*.txt
