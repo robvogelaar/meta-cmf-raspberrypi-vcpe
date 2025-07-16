@@ -550,15 +550,22 @@ get_eth_interface() {
 
 check_and_create_virt_wlan() {
     # Define the expected interfaces
-    local interfaces=("virt-wlan0" "virt-wlan1" "virt-wlan2" "virt-wlan3")
+
+    local interfaces_vcpe=("virt-wlan0" "virt-wlan1" "virt-wlan2" "virt-wlan3")
     local missing=0
 
-    # Check each interface
-    for iface in "${interfaces[@]}"; do
-        if ! ip link show "$iface" &>/dev/null; then
-            missing=$((missing + 1))
-        fi
-    done
+    if [ "$(lxc list vcpe --format csv -c ns | awk -F',' '{print $2}')" = "RUNNING" ]; then
+        : # vcpe is running, the wlan interfaces have been mapped into vpce container
+    else
+        : # vcpe is not running
+        # Check each interface
+        for iface in "${interfaces_vcpe[@]}"; do
+            if ! ip link show "$iface" &>/dev/null; then
+                missing=$((missing + 1))
+            fi
+        done
+    fi
+
 
     # If any interfaces are missing, create them
     if [ $missing -gt 0 ]; then
