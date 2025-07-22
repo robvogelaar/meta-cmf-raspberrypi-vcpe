@@ -1,0 +1,81 @@
+#cloud-config
+# DevOps Services Cloud Init Configuration
+# Network configuration for JIRA, Jenkins, and GitLab containers
+
+package_upgrade: false
+
+# Install common packages
+packages:
+  - curl
+  - wget
+  - git
+  - htop
+  - nano
+  - net-tools
+
+# Network configuration
+write_files:
+  - path: /etc/systemd/network/10-eth0.network
+    content: |
+      [Match]
+      Name=eth0
+
+      [Network]
+      DHCP=no
+      IPv6AcceptRA=no
+
+      [Address]
+      Address=10.10.10.0/24
+
+      [Route]
+      Gateway=10.10.10.1
+      Destination=0.0.0.0/0
+
+      [Route]
+      Destination=10.107.200.0/24
+      Gateway=10.10.10.1
+
+      [Route]
+      Destination=10.107.201.0/24
+      Gateway=10.10.10.1
+
+      [Route]
+      Destination=192.168.101.0/24
+      Gateway=10.10.10.1
+
+      [Route]
+      Destination=192.168.106.0/24
+      Gateway=10.10.10.1
+
+      [Route]
+      Destination=192.168.245.0/24
+      Gateway=10.10.10.1
+
+      [Route]
+      Destination=10.0.0.0/24
+      Gateway=10.10.10.1
+
+  - path: /etc/hosts
+    append: true
+    content: |
+      # DevOps Services
+      10.10.10.270 jira.vcpe.local jira
+      10.10.10.280 jenkins.vcpe.local jenkins
+      10.10.10.290 gitlab.vcpe.local gitlab
+
+# System configuration
+runcmd:
+  - systemctl enable systemd-networkd
+  - systemctl start systemd-networkd
+  - systemctl disable systemd-resolved
+  - echo "nameserver 8.8.8.8" > /etc/resolv.conf
+  - echo "nameserver 8.8.4.4" >> /etc/resolv.conf
+
+# Set timezone
+timezone: UTC
+
+# Configure locale
+locale: en_US.UTF-8
+
+# Final message
+final_message: "DevOps services cloud-init configuration completed"
