@@ -1,6 +1,71 @@
 #!/bin/bash
 
 
+check_lxd_running() {
+    if ! command -v lxd &> /dev/null; then
+        echo "Error: LXD is not installed."
+        exit 1
+    fi
+    
+    # Check if LXD is running via systemd or snap
+    if ! (systemctl is-active --quiet lxd || systemctl is-active --quiet snap.lxd.daemon); then
+        # Test LXD connectivity as fallback
+        if ! lxc list &> /dev/null; then
+            echo "Error: LXD service is not running or not accessible."
+            exit 1
+        fi
+    fi
+    
+    # Final connectivity test
+    if ! lxc list &> /dev/null; then
+        echo "Error: Cannot connect to LXD. Please check LXD configuration."
+        exit 1
+    fi
+}
+
+wait_for_container() {
+    local container_name="$1"
+    local max_attempts=30
+    local attempt=1
+    
+    echo "Waiting for container ${container_name} to be ready..."
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        if lxc exec "${container_name}" -- test -f /etc/hostname 2>/dev/null; then
+            echo "Container ${container_name} is ready"
+            return 0
+        fi
+        
+        echo "Waiting for container to be ready... (attempt $attempt/$max_attempts)"
+        sleep 2
+        ((attempt++))
+    done
+    
+    echo "Error: Container ${container_name} failed to become ready within expected time"
+    return 1
+}
+
+log_info() {
+    echo "[INFO] $*"
+}
+
+log_error() {
+    echo "[ERROR] $*" >&2
+}
+
+log_warning() {
+    echo "[WARNING] $*" >&2
+}
+
+cleanup_failed_deployment() {
+    local container_name="${1:-}"
+    if [[ -n "$container_name" ]] && lxc list -c n --format csv | grep -q "^${container_name}$"; then
+        echo "Cleaning up failed deployment: ${container_name}"
+        lxc stop "${container_name}" --force 2>/dev/null || true
+        lxc delete "${container_name}" 2>/dev/null || true
+    fi
+}
+
 check_lxd_version() {
     if command -v lxd &> /dev/null; then
         lxd_version=$(lxd --version)

@@ -50,6 +50,24 @@ The automatics container (centos-stream 9) comprises the entire suite of automat
 
 The boardfarm container (ubuntu 22.04) comprises the entire suite of boardfarm components in a single container. It is currently under development.
 
+## DevOps containers
+
+### jira container
+
+The jira container (ubuntu 22.04) contains Atlassian JIRA Server for issue tracking and project management. It includes PostgreSQL database and is configured for agile development workflows with the vCPE team.
+
+### jenkins container
+
+The jenkins container (ubuntu 22.04) contains Jenkins LTS for continuous integration and deployment. It comes pre-configured with Docker, Ansible, Terraform, kubectl, and other DevOps tools for automating vCPE container builds, testing, and deployments.
+
+### gitlab container
+
+The gitlab container (ubuntu 22.04) contains GitLab CE for Git repository hosting with integrated CI/CD capabilities. It provides source code management, merge request workflows, issue tracking, and automated pipeline execution for vCPE development.
+
+### tdk container
+
+The tdk container (ubuntu 20.04) runs the Test Development Kit (TDK) Test Manager inside a Docker container. It provides comprehensive test management capabilities for RDK-B devices including test case creation, execution, result analysis, and CI/CD integration. TDK uses MySQL database, Tomcat application server, and supports both Python and Java test frameworks.
+
 # Bridges overview
 
 ## lxdbr1
@@ -79,12 +97,17 @@ Ubuntu 20/22/24 is recommended as it is known to work correctly for all cpe, bng
 ## Install LXD
 
 ```text
-sudo snap install lxd --channel=6.1
+sudo snap install lxd --channel=6
 ```
 
 ## Initialize LXD
 
-this is required once after a install or re-install. select all defaults.
+this is required once after a install or re-install. select all except for the below two items:
+
+```text
+Size in GiB of the new loop device (1GiB minimum) [default=10GiB]: 40
+Would you like the LXD server to be available over the network? (yes/no) [default=no]: yes
+```
 
 ```text
 lxd init
@@ -146,7 +169,8 @@ Run the acs.sh / genieacs.sh script:
 Note: as part of the acs container creation, an encrypted Axiros container image is obtained from dropbox available to licensees only.
 
 ```text
-acs.sh
+ACS_URL="" ACS_KEY="" acs.sh
+
 genieacs.sh
 
 lxc list
@@ -305,6 +329,32 @@ lxc list
 
 ```
 
+## Install DevOps services
+
+Run the DevOps service scripts to add project management, CI/CD, source code management, and test management capabilities.
+
+```text
+jira.sh
+jenkins.sh
+gitlab.sh
+tdk.sh
+
+# Or install TDK with specific version
+tdk.sh TDK_M129
+
+lxc list
+
++----------+---------+--------------------------------+----------------------------------------+
+| jira     | RUNNING | 10.10.10.27 (eth0)             | 2001:dbf:0:1::27 (eth0)                |
++----------+---------+--------------------------------+----------------------------------------+
+| jenkins  | RUNNING | 10.10.10.28 (eth0)             | 2001:dbf:0:1::28 (eth0)                |
++----------+---------+--------------------------------+----------------------------------------+
+| gitlab   | RUNNING | 10.10.10.29 (eth0)             | 2001:dbf:0:1::29 (eth0)                |
++----------+---------+--------------------------------+----------------------------------------+
+| tdk      | RUNNING | 10.10.10.30 (eth0)             | 2001:dbf:0:1::30 (eth0)                |
++----------+---------+--------------------------------+----------------------------------------+
+```
+
 ## Connect physical CPE's
 
 Connect the CPE wan to the container host using a usb eth adapter and add the usb eth interface into the wan bridge. Restart the device and it will obtain ip from the bng container.
@@ -364,6 +414,51 @@ sudo ip link set enxXXX master wan
 #       http://192.168.2.120:5555/DeviceManager/swagger-ui.html
 #
 ###############################################################################################
+# jira:
+#       10.10.10.27 | 2001:dbf:0:1::27 (eth0)
+#       ssh -L 192.168.2.120:8270:10.10.10.27:8080 rev@192.168.2.120
+#
+# ui:
+#       http://192.168.2.120:8270
+#       admin / admin123 (change on first login)
+#
+###############################################################################################
+# jenkins:
+#       10.10.10.28 | 2001:dbf:0:1::28 (eth0)
+#       ssh -L 192.168.2.120:8280:10.10.10.28:8080 rev@192.168.2.120
+#
+# ui:
+#       http://192.168.2.120:8280
+#       admin / admin123 (or check initial admin password)
+#
+###############################################################################################
+# gitlab:
+#       10.10.10.29 | 2001:dbf:0:1::29 (eth0)
+#       ssh -L 192.168.2.120:8290:10.10.10.29:80 rev@192.168.2.120
+#
+# ui:
+#       http://192.168.2.120:8290
+#       root / gitlab123 (change on first login)
+#
+# git clone:
+#       http://192.168.2.120:8290/root/vcpe-example.git
+#
+###############################################################################################
+# tdk:
+#       10.10.10.30 | 2001:dbf:0:1::30 (eth0)
+#       ssh -L 192.168.2.120:8300:10.10.10.30:8080 rev@192.168.2.120
+#
+# ui:
+#       http://192.168.2.120:8300/rdk-test-tool
+#       admin / admin (change on first login)
+#
+# database:
+#       Host: 192.168.2.120:3306
+#       Database: rdktesttoolproddb
+#       Username: rdktesttooluser
+#       Password: 6dktoolus3r!
+#
+###############################################################################################
 # xconf:
 #       10.10.10.250 | 2001:dbf:0:1::250 (eth0)
 #       ssh -L 192.168.2.120:19093:10.10.10.250:19093 rev@192.168.2.120
@@ -378,6 +473,19 @@ sudo ip link set enxXXX master wan
 #
 # ui (elastic):
 #       http://192.168.2.120:5601
+#
+###############################################################################################
+# tdk:
+#       10.10.10.300 | 2001:dbf:0:1::300 (eth0)
+#       ssh -L 192.168.2.120:8300:10.10.10.300:8080 rev@192.168.2.120
+#
+# ui:
+#       http://192.168.2.120:8300/rdk-test-tool
+#
+# database:
+#       MySQL on port 3306
+#       Database: rdktesttoolproddb
+#       Username: rdktesttooluser / 6dktoolus3r!
 #
 ```
 
