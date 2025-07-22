@@ -9,7 +9,8 @@ container_name="genieacs"
 
 if ! lxc image list | grep -q "genieacs-base"; then
     echo "Creating genieacs-base image"
-    genieacs-base.sh
+    #genieacs-base.sh
+    genieacs-base-mongodb44.sh
 fi
 
 ########################################################################################
