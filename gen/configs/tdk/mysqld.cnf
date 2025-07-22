@@ -1,0 +1,43 @@
+# MySQL daemon configuration for TDK
+
+[mysqld]
+pid-file        = /var/run/mysqld/mysqld.pid
+socket          = /var/run/mysqld/mysqld.sock
+datadir         = /var/lib/mysql
+log-error       = /var/log/mysql/error.log
+bind-address    = 127.0.0.1
+skip-external-locking
+
+# Performance settings
+key_buffer_size         = 16M
+max_allowed_packet      = 16M
+thread_stack            = 192K
+thread_cache_size       = 8
+myisam-recover-options  = BACKUP
+max_connections         = 100
+
+# Query cache settings
+query_cache_limit       = 1M
+query_cache_size        = 16M
+
+# Logging
+general_log_file        = /var/log/mysql/mysql.log
+general_log             = 0
+log_slow_queries        = /var/log/mysql/mysql-slow.log
+long_query_time         = 2
+
+# InnoDB settings
+innodb_buffer_pool_size = 256M
+innodb_log_file_size    = 64M
+innodb_flush_method     = O_DIRECT
+innodb_file_per_table   = 1
+
+# Character set
+character-set-server    = utf8mb4
+collation-server        = utf8mb4_unicode_ci
+
+[mysql]
+default-character-set   = utf8mb4
+
+[client]
+default-character-set   = utf8mb4
