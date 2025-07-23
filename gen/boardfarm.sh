@@ -71,27 +71,9 @@ lxc exec ${container_name} -- bash -c "netplan apply >/dev/null 2>&1 || ip link 
 # lxc exec ${container_name} -- timedatectl set-timezone America/Los_Angeles
 
 ########################################################################################
-# setup LXD certificates for API access
+# copy LXD certificates to container (assumes they're already set up by gen-util.sh)
 
-echo "Setting up LXD certificates..."
-
-# Create certificate directory in host
-mkdir -p ~/.config/lxc
-
-# Generate client certificate and key if they don't exist
-if [[ ! -f ~/.config/lxc/client.crt ]] || [[ ! -f ~/.config/lxc/client.key ]]; then
-    echo "Generating LXD client certificates..."
-    openssl req -x509 -newkey rsa:4096 -keyout ~/.config/lxc/client.key -out ~/.config/lxc/client.crt -days 365 -nodes -subj "/CN=lxd-client"
-    chmod 600 ~/.config/lxc/client.key
-    chmod 644 ~/.config/lxc/client.crt
-fi
-
-# Add certificate to LXD trusted certificates
-echo "Adding certificate to LXD trusted certificates..."
-lxc config trust add ~/.config/lxc/client.crt 2>/dev/null || echo "Certificate already trusted"
-
-# Copy certificates to container
-echo "Copying certificates to container..."
+echo "Copying LXD certificates to container..."
 lxc file push ~/.config/lxc/client.crt "${container_name}/root/.config/lxc/client.crt" --create-dirs --uid 0 --gid 0 --mode 644
 lxc file push ~/.config/lxc/client.key "${container_name}/root/.config/lxc/client.key" --create-dirs --uid 0 --gid 0 --mode 600
 
@@ -100,11 +82,11 @@ echo "Testing LXD API access from container..."
 lxc exec ${container_name} -- bash -c "
     # Quick LXD API test with timeout
     echo 'Testing LXD API with certificates...'
-    API_RESULT=\$(timeout 5 curl -s -k --cert /root/.config/lxc/client.crt --key /root/.config/lxc/client.key https://${lxd_endpoint}/1.0/containers 2>/dev/null)
-    
+    API_RESULT=\$(timeout 5 curl -s -k --cert /root/.config/lxc/client.crt --key /root/.config/lxc/client.key https://${lxd_endpoint}/1.0/instances 2>/dev/null)
+
     if echo \"\$API_RESULT\" | grep -q '\"type\":\"sync\"' 2>/dev/null; then
         echo 'LXD API test SUCCESSFUL'
-        echo 'Container count:' \$(echo \"\$API_RESULT\" | grep -o '/1.0/containers/' | wc -l)
+        echo 'Instance count:' \$(echo \"\$API_RESULT\" | grep -o '/1.0/instances/' | wc -l)
     else
         echo 'LXD API test FAILED or timed out'
     fi
@@ -117,21 +99,22 @@ echo "Installing boardfarm and dependencies..."
 lxc exec ${container_name} -- bash -c "
     # Force reinstall pexpect to avoid conflicts
     pip install --force-reinstall --no-deps --ignore-installed pexpect
-    
+
     # Clone boardfarm3 branch
     git clone https://github.com/robvogelaar/boardfarm.git -b boardfarm3
-    
+
     # Install boardfarm with all development dependencies
     pip install -e boardfarm[dev,doc,test]
-    
+
     # Install pytest-boardfarm plugin
     pip install git+https://github.com/robvogelaar/pytest-boardfarm.git@boardfarm3
-    
+
     echo
     echo 'Boardfarm installation completed!'
     echo
     echo 'Run a test using:'
     echo
+    echo 'sed -i 's/192\.168\.2\.120:8443/<<HOST_IP>>:8443/g' boardfarm/vcpe/vcpe_only_inventory.json'
     echo 'pytest -c boardfarm/vcpe/vcpe_only_pytest.ini boardfarm/vcpe/tests/vcpe_only_tests/'
     echo
 "

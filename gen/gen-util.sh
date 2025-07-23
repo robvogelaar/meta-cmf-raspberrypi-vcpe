@@ -697,6 +697,84 @@ validate_lan_port() {
 }
 
 
+setup_lxd_certificates() {
+    local lxd_endpoint="${1:-192.168.2.150:8443}"
+    local cert_dir="$HOME/.config/lxc"
+    local cert_validity_days=3650
+    
+    # Create certificate directory silently
+    mkdir -p "${cert_dir}" 2>/dev/null
+    
+    # Generate client certificate and key if they don't exist
+    if [[ ! -f "${cert_dir}/client.crt" ]] || [[ ! -f "${cert_dir}/client.key" ]]; then
+        # Generate certificate silently
+        if ! openssl req -x509 -newkey rsa:4096 \
+            -keyout "${cert_dir}/client.key" \
+            -out "${cert_dir}/client.crt" \
+            -days ${cert_validity_days} \
+            -nodes \
+            -subj "/CN=lxd-client/O=LXD/OU=REST-API" >/dev/null 2>&1; then
+            echo "Error: Failed to generate LXD client certificates"
+            return 1
+        fi
+        
+        # Set permissions
+        chmod 600 "${cert_dir}/client.key" 2>/dev/null
+        chmod 644 "${cert_dir}/client.crt" 2>/dev/null
+    fi
+    
+    # Add certificate to LXD trusted certificates (silent unless error)
+    lxc config trust add "${cert_dir}/client.crt" >/dev/null 2>&1 || true
+    
+    # Test API connectivity
+    local test_response
+    test_response=$(curl -s -k \
+        --cert "${cert_dir}/client.crt" \
+        --key "${cert_dir}/client.key" \
+        -w "\nHTTP_CODE:%{http_code}" \
+        --connect-timeout 5 \
+        "https://${lxd_endpoint}/1.0" 2>/dev/null || echo "CURL_FAILED")
+    
+    if [[ "$test_response" == "CURL_FAILED" ]]; then
+        echo "Error: Failed to connect to LXD API at ${lxd_endpoint}"
+        return 1
+    fi
+    
+    local http_code
+    http_code=$(echo "$test_response" | grep "HTTP_CODE:" | cut -d: -f2)
+    
+    if [[ "$http_code" != "200" ]]; then
+        echo "Error: LXD API test failed with HTTP status ${http_code}"
+        return 1
+    fi
+    
+    # Test instance listing (using instances endpoint for newer LXD versions)
+    local instances_response
+    instances_response=$(curl -s -k \
+        --cert "${cert_dir}/client.crt" \
+        --key "${cert_dir}/client.key" \
+        --connect-timeout 5 \
+        "https://${lxd_endpoint}/1.0/instances" 2>/dev/null)
+    
+    # Fallback to containers endpoint if instances fails
+    if ! echo "$instances_response" | grep -q '"type":"sync"'; then
+        instances_response=$(curl -s -k \
+            --cert "${cert_dir}/client.crt" \
+            --key "${cert_dir}/client.key" \
+            --connect-timeout 5 \
+            "https://${lxd_endpoint}/1.0/containers" 2>/dev/null)
+    fi
+    
+    if ! echo "$instances_response" | grep -q '"type":"sync"'; then
+        echo "Error: Failed to retrieve LXD instance list"
+        return 1
+    fi
+    
+    # All tests passed silently
+    return 0
+}
+
+
 main() {
     M_ROOT="$( dirname "$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )" )"
 
@@ -729,6 +807,8 @@ main() {
     fi
 
     check_and_create_virt_wlan
+
+    setup_lxd_certificates
 
 }
 
