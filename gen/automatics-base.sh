@@ -45,10 +45,57 @@ lxc exec ${container_name} -- dnf install -y java-17-openjdk java-17-openjdk-dev
 
 ###################################################################################################################################
 # maven
-lxc exec ${container_name} -- wget -c https://dlcdn.apache.org/maven/maven-3/3.9.10/binaries/apache-maven-3.9.10-bin.tar.gz -P /root
-lxc exec ${container_name} -- tar xaf /root/apache-maven-3.9.10-bin.tar.gz -C /opt
-lxc exec ${container_name} -- bash -c 'echo "export PATH=\$PATH:/opt/apache-maven-3.9.10/bin" > /etc/profile.d/maven.sh'
-lxc exec ${container_name} -- chmod +x /etc/profile.d/maven.sh
+echo "Installing Apache Maven..."
+lxc exec ${container_name} -- bash -c '
+    # Try multiple Maven versions and mirrors
+    MAVEN_URLS=(
+        "https://dlcdn.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz"
+        "https://dlcdn.apache.org/maven/maven-3/3.9.8/binaries/apache-maven-3.9.8-bin.tar.gz"
+        "https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz"
+        "https://archive.apache.org/dist/maven/maven-3/3.9.8/binaries/apache-maven-3.9.8-bin.tar.gz"
+        "https://downloads.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz"
+    )
+    
+    MAVEN_INSTALLED=false
+    
+    for url in "${MAVEN_URLS[@]}"; do
+        echo "Trying to download Maven from: $url"
+        filename=$(basename "$url")
+        version=$(echo "$filename" | sed -n "s/apache-maven-\(.*\)-bin.tar.gz/\1/p")
+        
+        if wget -c "$url" -P /root --timeout=30 2>/dev/null; then
+            echo "Successfully downloaded $filename"
+            
+            # Extract and install
+            if tar xaf "/root/$filename" -C /opt 2>/dev/null; then
+                echo "export PATH=\$PATH:/opt/apache-maven-$version/bin" > /etc/profile.d/maven.sh
+                echo "export MAVEN_HOME=/opt/apache-maven-$version" >> /etc/profile.d/maven.sh
+                chmod +x /etc/profile.d/maven.sh
+                
+                # Verify installation
+                source /etc/profile.d/maven.sh
+                if /opt/apache-maven-$version/bin/mvn --version >/dev/null 2>&1; then
+                    echo "Maven $version installed successfully"
+                    MAVEN_INSTALLED=true
+                    break
+                else
+                    echo "Maven extraction succeeded but binary test failed"
+                    rm -rf "/opt/apache-maven-$version"
+                fi
+            else
+                echo "Failed to extract $filename"
+            fi
+            rm -f "/root/$filename"
+        else
+            echo "Failed to download from $url"
+        fi
+    done
+    
+    if [ "$MAVEN_INSTALLED" = false ]; then
+        echo "ERROR: Failed to install Maven from any source"
+        exit 1
+    fi
+'
 
 ###################################################################################################################################
 # mariaDB

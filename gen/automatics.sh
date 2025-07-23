@@ -83,7 +83,7 @@ lxc exec ${container_name} -- systemctl stop tomcat
 # Install build configure deploy automatics-props
 
 lxc exec ${container_name} -- bash -c 'cd /root && git clone https://code.rdkcentral.com/r/rdk/tools/automatics/automatics-props'
-lxc exec ${container_name} -- bash -c "cd /root/automatics-props && /opt/apache-maven-3.9.10/bin/mvn install"
+lxc exec ${container_name} -- bash -c "source /etc/profile.d/maven.sh && cd /root/automatics-props && mvn install"
 
 # create server-config.xml
 
@@ -148,7 +148,7 @@ lxc exec ${container_name} -- cp /root/automatics-props/target/AutomaticsProps.w
 # Install build configure deploy automatics-orchestration
 
 lxc exec ${container_name} -- bash -c 'cd /root && git clone https://code.rdkcentral.com/r/rdk/tools/automatics'
-lxc exec ${container_name} -- bash -c "cd /root/automatics && /opt/apache-maven-3.9.10/bin/mvn install"
+lxc exec ${container_name} -- bash -c "source /etc/profile.d/maven.sh && cd /root/automatics && mvn install"
 
 # Create automatics database
 lxc exec ${container_name} -- mysql -u root -e "CREATE DATABASE \`automatics\`;"
@@ -185,14 +185,14 @@ lxc exec ${container_name} -- mysql -u root -e "ALTER USER 'root'@'localhost' ID
 lxc exec ${container_name} -- sed -i 's/spring.datasource.username=/spring.datasource.username=root/' /root/device-manager/src/main/resources/application.properties
 lxc exec ${container_name} -- sed -i 's/spring.datasource.password=/spring.datasource.password=cm9vdA==/' /root/device-manager/src/main/resources/application.properties
 
-lxc exec ${container_name} -- bash -c "cd /root/device-manager && /opt/apache-maven-3.9.10/bin/mvn install"
+lxc exec ${container_name} -- bash -c "source /etc/profile.d/maven.sh && cd /root/device-manager && mvn install"
 
 ###################################################################################################################################
 # Install configure build device-manager-ui
 
 lxc exec ${container_name} -- bash -c 'cd /root && git clone https://code.rdkcentral.com/r/rdk/tools/device-manager-ui'
 lxc exec ${container_name} -- sed -i 's#DEVICE_MANAGER_BASE_URL=#DEVICE_MANAGER_BASE_URL=http://localhost:8080/DeviceManager/#' /root/device-manager-ui/src/main/resources/application.properties
-lxc exec ${container_name} -- bash -c "cd /root/device-manager-ui && /opt/apache-maven-3.9.10/bin/mvn install"
+lxc exec ${container_name} -- bash -c "source /etc/profile.d/maven.sh && cd /root/device-manager-ui && mvn install"
 
 ###################################################################################################################################
 # Deploy device-manager
@@ -208,7 +208,7 @@ lxc exec ${container_name} -- cp /root/device-manager-ui/target/DeviceManagerUI.
 # Install build automatics-core
 
 lxc exec ${container_name} -- bash -c 'cd /root/ && git clone https://code.rdkcentral.com/r/rdk/tools/automatics/automatics-core'
-lxc exec ${container_name} -- bash -c 'cd /root/automatics-core/ && /opt/apache-maven-3.9.10/bin/mvn install'
+lxc exec ${container_name} -- bash -c 'source /etc/profile.d/maven.sh && cd /root/automatics-core/ && mvn install'
 
 ###################################################################################################################################
 # Install build rpi-provider
@@ -219,13 +219,13 @@ lxc exec ${container_name} -- bash -c 'cd /root/ && git clone https://code.rdkce
 lxc file push gen/patches/automatics/java-handler/0001-fixups.patch automatics/root/java-handler/
 lxc exec ${container_name} -- bash -c 'cd /root/java-handler/ && git am 0001-fixups.patch'
 
-lxc exec ${container_name} -- bash -c 'cd /root/java-handler/ && /opt/apache-maven-3.9.10/bin/mvn install -DskipTests'
+lxc exec ${container_name} -- bash -c 'source /etc/profile.d/maven.sh && cd /root/java-handler/ && mvn install -DskipTests'
 
 ###################################################################################################################################
 # Install RDKB tests
 
 lxc exec ${container_name} -- bash -c 'cd /root/ && git clone https://code.rdkcentral.com/r/rdk/tools/automatics/rdkb-test-utils'
-lxc exec ${container_name} -- bash -c 'cd /root/rdkb-test-utils/ && /opt/apache-maven-3.9.10/bin/mvn clean install'
+lxc exec ${container_name} -- bash -c 'source /etc/profile.d/maven.sh && cd /root/rdkb-test-utils/ && mvn clean install'
 
 lxc exec ${container_name} -- bash -c 'cd /root/ && git clone https://code.rdkcentral.com/r/rdk/tools/automatics/rdkb-tests'
 
@@ -239,10 +239,10 @@ lxc exec ${container_name} -- sed -i '/<\/dependencies>/i\
                </dependency>' /root/rdkb-tests/pom.xml
 
 
-lxc exec ${container_name} -- bash -c 'cd /root/rdkb-tests/ && /opt/apache-maven-3.9.10/bin/mvn clean install -DskipTests'
+lxc exec ${container_name} -- bash -c 'source /etc/profile.d/maven.sh && cd /root/rdkb-tests/ && mvn clean install -DskipTests'
 
 lxc exec ${container_name} -- bash -c 'cd /root/ && git clone https://code.rdkcentral.com/r/rdk/tools/automatics/generic-automation-tests'
-lxc exec ${container_name} -- bash -c 'cd /root/generic-automation-tests/ && /opt/apache-maven-3.9.10/bin/mvn clean install -DskipTests'
+lxc exec ${container_name} -- bash -c 'source /etc/profile.d/maven.sh && cd /root/generic-automation-tests/ && mvn clean install -DskipTests'
 
 
 ###################################################################################################################################
@@ -251,7 +251,7 @@ lxc exec ${container_name} -- bash -c 'cd /root/generic-automation-tests/ && /op
 lxc exec ${container_name} -- bash -c 'cd /root/ && git clone https://code.rdkcentral.com/r/rdk/tools/automatics/scriptless-service'
 lxc exec ${container_name} -- sed -i 's/spring.datasource.username=/spring.datasource.username=root/' /root/scriptless-service/RackDataService/src/main/resources/application.properties
 lxc exec ${container_name} -- sed -i 's/spring.datasource.password=/spring.datasource.password=cm9vdA==/' /root/scriptless-service/RackDataService/src/main/resources/application.properties
-lxc exec ${container_name} -- bash -c 'cd /root/scriptless-service/RackDataService && /opt/apache-maven-3.9.10/bin/mvn clean install'
+lxc exec ${container_name} -- bash -c 'source /etc/profile.d/maven.sh && cd /root/scriptless-service/RackDataService && mvn clean install'
 
 # Install systemd service
 
