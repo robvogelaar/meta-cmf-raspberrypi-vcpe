@@ -82,22 +82,8 @@ create_gitlab_container() {
     if ! lxc image list --format csv | grep -q "^${BASE_CONTAINER},"; then
         echo "Base image ${BASE_CONTAINER} not found. Creating..."
         
-        # Create base container
+        # Create base image (gitlab-base.sh handles publishing and cleanup)
         "$(dirname "$0")/gitlab-base.sh"
-        
-        # Stop base container if running
-        if lxc list --format csv | grep "^${BASE_CONTAINER}," | grep -q "RUNNING"; then
-            echo "Stopping base container..."
-            lxc stop "${BASE_CONTAINER}"
-        fi
-        
-        # Export base container to image
-        echo "Exporting base container to image..."
-        lxc publish "${BASE_CONTAINER}" --alias "${BASE_CONTAINER}"
-        
-        # Delete base container
-        echo "Removing base container..."
-        lxc delete "${BASE_CONTAINER}"
     fi
     
     # Launch container from base image
@@ -109,10 +95,6 @@ create_gitlab_container() {
     
     # Configure GitLab for this instance
     configure_gitlab_instance
-    
-    # Start container
-    echo "Starting GitLab container..."
-    lxc start "${CONTAINER_NAME}"
     
     # Wait for container to be ready
     wait_for_container "${CONTAINER_NAME}"
