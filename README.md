@@ -94,6 +94,11 @@ The Virtual CPE Environment runs on a x86 Linux host using LXD container manager
 
 Ubuntu 20/22/24 is recommended as it is known to work correctly for all cpe, bng, client, and service - container configurations. Verified with virtual box ubuntu-20.04.6/22.04.5/24.04.1-live-server-amd64.
 
+```text
+sudo apt install -y curl
+```
+
+
 ## Install LXD
 
 ```text
@@ -105,7 +110,7 @@ sudo snap install lxd --channel=6
 this is required once after a install or re-install. select all except for the below two items:
 
 ```text
-Size in GiB of the new loop device (1GiB minimum) [default=10GiB]: 40
+Size in GiB of the new loop device (1GiB minimum) [default=30GiB]: 40
 Would you like the LXD server to be available over the network? (yes/no) [default=no]: yes
 ```
 
@@ -144,10 +149,8 @@ git clone https://github.com/robvogelaar/meta-cmf-raspberrypi-vcpe
 Add meta-cmf-raspberrypi-vcpe to system PATH:
 
 ```text
-vi ~/.textrc
 export PATH="$HOME/git/meta-cmf-raspberrypi-vcpe/gen:$PATH"
 export PATH="$HOME/git/meta-cmf-raspberrypi-vcpe/probes/scripts:$PATH"
-source ~/.textrc
 
 # it is recommended to run all the vcpe scripts from this directory
 cd $HOME/git/meta-cmf-raspberrypi-vcpe
@@ -161,6 +164,61 @@ Required once after a host reboot. Run the bridges.sh script:
 ```text
 bridges.sh
 ```
+
+## Install BNG containers
+
+Run the bng.sh script to install bng-7 (ie. non-vlan bng)
+
+Note: This will first create a bng base container. This is a one-time process that will take several minutes to complete, as it builds a container image from scratch. Please be patient during this initial setup.
+
+```text
+bng.sh 7
+
+lxc list
++--------+---------+--------------------------+-------------------------------+
+|  NAME  |  STATE  |           IPV4           |             IPV6              |
++--------+---------+--------------------------+-------------------------------+
+| bng-7  | RUNNING | 10.107.201.1 (eth2)      | 2001:dbf:0:1::107 (eth0)      |
+|        |         | 10.107.200.1 (eth1)      | 2001:daf:7:1::129 (eth2)      |
+|        |         | 10.10.10.107 (eth0)      | 2001:dae:7:1::129 (eth1)      |
++--------+---------+--------------------------+-------------------------------+
+```
+
+## Install VCPE container
+
+Run the vcpe.sh user@host:/path-to-container-image script to install vcpe container:
+
+Shell into the container to check processes, datamodel etc.
+
+It is recommended to at least once run a factory default inside the vcpe container using the appropriate command syscfg / dmcli etc.
+
+e.g. dmcli eRT setv Device.X_CISCO_COM_DeviceControl.FactoryReset string "Router,Wifi"
+
+a factory default will eventually reboot the container at which time you will be kicked out of the container shell, you can immediately shell back in.
+
+Once the vcpe container is running it should take < 10 seconds for the lan and wan (erouter0) side to be completely configured with ip4/6.
+
+Note: the cpe container command history will be saved in /nvram/, to write the history file, exit and re-enter the container, the history will remain available upon a container reboot.
+
+```text
+
+vcpe.sh rev@rev140:/home/rev/yocto/rdkb-2025q1-kirkstone-nosrc-0601/build-qemux86broadband/tmp/deploy/images/qemux86broadband/rdk-generic-broadband-image-qemux86broadband.lxc.tar.bz2
+
+lxc list
++--------+---------+---------------------------+---------------------------------------------+
+| vcpe   | RUNNING | 192.168.245.1 (br403)     | 3001:dae:0:e900:216:3eff:fe16:5f7c (brlan0) |
+|        |         | 192.168.106.1 (br106)     | 2001:dae:7:1::254 (erouter0)                |
+|        |         | 192.168.101.3 (br0)       |                                             |
+|        |         | 10.107.200.100 (erouter0) |                                             |
+|        |         | 10.0.0.1 (brlan0)         |                                             |
++--------+---------+---------------------------+---------------------------------------------+
+
+lxc exec vcpe bash
+root@RaspberryPi-Gateway:~$ ps / top /etc.
+root@RaspberryPi-Gateway:~$ dmcli eRT getv Device.DeviceInfo.
+root@RaspberryPi-Gateway:~$ systemd-analyze plot
+```
+
 
 ## Install ACS container
 
@@ -238,60 +296,6 @@ curl -H 'Authorization:Basic dXNlcjEyMzp3ZWJwYUAxMjM0NTY3ODkw' http://10.10.10.2
 
 ```
 
-## Install BNG containers
-
-Run the bng.sh script to install bng-7 (ie. non-vlan bng)
-
-Note: This will first create a bng base container. This is a one-time process that will take several minutes to complete, as it builds a container image from scratch. Please be patient during this initial setup.
-
-```text
-bng.sh 7
-
-lxc list
-+--------+---------+--------------------------+-------------------------------+
-|  NAME  |  STATE  |           IPV4           |             IPV6              |
-+--------+---------+--------------------------+-------------------------------+
-| bng-7  | RUNNING | 10.107.201.1 (eth2)      | 2001:dbf:0:1::107 (eth0)      |
-|        |         | 10.107.200.1 (eth1)      | 2001:daf:7:1::129 (eth2)      |
-|        |         | 10.10.10.107 (eth0)      | 2001:dae:7:1::129 (eth1)      |
-+--------+---------+--------------------------+-------------------------------+
-```
-
-
-## Install VCPE container
-
-Run the vcpe.sh user@host:/path-to-container-image script to install vcpe container:
-
-Shell into the container to check processes, datamodel etc.
-
-It is recommended to at least once run a factory default inside the vcpe container using the appropriate command syscfg / dmcli etc.
-
-e.g. dmcli eRT setv Device.X_CISCO_COM_DeviceControl.FactoryReset string "Router,Wifi"
-
-a factory default will eventually reboot the container at which time you will be kicked out of the container shell, you can immediately shell back in.
-
-Once the vcpe container is running it should take < 10 seconds for the lan and wan (erouter0) side to be completely configured with ip4/6.
-
-Note: the cpe container command history will be saved in /nvram/, to write the history file, exit and re-enter the container, the history will remain available upon a container reboot.
-
-```text
-
-vcpe.sh rev@rev140:/home/rev/yocto/rdkb-2025q1-kirkstone-nosrc-0601/build-qemux86broadband/tmp/deploy/images/qemux86broadband/rdk-generic-broadband-image-qemux86broadband.lxc.tar.bz2
-
-lxc list
-+--------+---------+---------------------------+---------------------------------------------+
-| vcpe   | RUNNING | 192.168.245.1 (br403)     | 3001:dae:0:e900:216:3eff:fe16:5f7c (brlan0) |
-|        |         | 192.168.106.1 (br106)     | 2001:dae:7:1::254 (erouter0)                |
-|        |         | 192.168.101.3 (br0)       |                                             |
-|        |         | 10.107.200.100 (erouter0) |                                             |
-|        |         | 10.0.0.1 (brlan0)         |                                             |
-+--------+---------+---------------------------+---------------------------------------------+
-
-lxc exec vcpe bash
-root@RaspberryPi-Gateway:~$ ps / top /etc.
-root@RaspberryPi-Gateway:~$ dmcli eRT getv Device.DeviceInfo.
-root@RaspberryPi-Gateway:~$ systemd-analyze plot
-```
 
 ## Install (lan/wlan) client containers
 
