@@ -16,10 +16,11 @@ else
     exit 1
 fi
 
-vlan=100
 
 container_name="client-lan-${1}"
 profile_name="$container_name"
+
+vlan="$(validate_and_hash "${1%-p[1-4]}")"; [[ "$vlan" == "-1" ]] && vlan=100
 
 # create client-base image if not exist
 if ! lxc image list | grep -q "client-base"; then
