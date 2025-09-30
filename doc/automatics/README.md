@@ -22,6 +22,8 @@ $ lxc exec automatics bash
 
 # Device Connection Test
 
+Note: 10.107.200.100 is an example IP address. You must enter your actual device's WAN (erouter0) IP address.
+
 This test connects to device, and runs a number of commands on the device.
 
 ## Verify ssh connection to device:
@@ -38,14 +40,16 @@ ctrl-D or exit
 ## Configure device IP
 
 ```text
-[root@automatics ~]# cd java-handler
+[root@automatics ~]# cd
 [root@automatics ~]# NEW_IP="10.107.200.100"
-[root@automatics ~]# sed -i "s/10\.107\.200\.110/$NEW_IP/g" src/test/java/com/connectionproviders/deviceconnectionprovider/DeviceConnectionProviderImplTest.java
+[root@automatics ~]# sed -i "s/10\.107\.200\.110/$NEW_IP/g" /root/java-handler/src/test/java/com/connectionproviders/deviceconnectionprovider/DeviceConnectionProviderImplTest.java
+[root@automatics ~]# sed -i "s/10\.107\.200\.110/$NEW_IP/g" /root/server-config.xml
 ```
 
 ## Run connection test:
 
 ```text
+[root@automatics ~]# cd java-handler
 [root@automatics java-handler]# mvn test -Dautomatics.properties.file=http://localhost:8080/automatics/automatics.properties
 ```
 
