@@ -112,9 +112,9 @@ EOF'
 
 lxc exec ${container_name} -- sh -c '
 sed -i \
-  -e "s|^device\.props=$|device.props=http://localhost:8080/automatics/device_config.json|" \
-  -e "s|^automatics\.url=$|automatics.url=http://localhost:8080/Automatics/|" \
-  -e "s|^DEVICE_MANAGER_BASE_URL=$|DEVICE_MANAGER_BASE_URL=http://localhost:8080/DeviceManager/|" \
+  -e "s|^device\.props=.*|device.props=http://localhost:8080/automatics/device_config.json|" \
+  -e "s|^automatics\.url=.*|automatics.url=http://localhost:8080/Automatics/|" \
+  -e "s|^DEVICE_MANAGER_BASE_URL=.*|DEVICE_MANAGER_BASE_URL=http://localhost:8080/DeviceManager/|" \
   /root/automatics-props/src/automatics.properties
 
 cat >> /root/automatics-props/src/automatics.properties << EOF
