@@ -29,7 +29,7 @@ check_network client-base-container
 
 lxc exec ${container_name} -- apk update
 lxc exec ${container_name} -- apk add iw wpa_supplicant wireless-tools
-lxc exec ${container_name} -- apk add iperf3
+lxc exec ${container_name} -- apk add iperf3 curl
 lxc exec ${container_name} -- apk add openssh-server openssh-client
 lxc exec ${container_name} -- apk add bash
 
