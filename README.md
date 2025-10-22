@@ -219,6 +219,49 @@ root@RaspberryPi-Gateway:~$ dmcli eRT getv Device.DeviceInfo.
 root@RaspberryPi-Gateway:~$ systemd-analyze plot
 ```
 
+### Multiple VCPE Instances
+
+The vcpe.sh script supports creating multiple independent vCPE container instances using an optional suffix parameter (001-099). Each instance has its own:
+- Unique container name, profile, and NVRAM volume
+- Unique MAC addresses and VLAN ID
+- Unique virtual WLAN interfaces
+
+```text
+# Create first instance (vcpe-001)
+vcpe.sh rev@rev140:/path/to/rdk-generic-broadband-image-qemux86broadband.lxc.tar.bz2 001
+
+# Create second instance (vcpe-002)
+vcpe.sh rev@rev140:/path/to/rdk-generic-broadband-image-qemux86broadband.lxc.tar.bz2 002
+
+# Create additional instances for parallel testing
+vcpe.sh /path/to/local/image.tar.bz2 010
+vcpe.sh /path/to/local/image.tar.bz2 020
+
+# List all containers
+lxc list
+
++----------+---------+---------------------------+---------------------------------------------+
+| vcpe     | RUNNING | 10.107.200.100 (erouter0) | 3001:dae:0:e900:216:3eff:fe16:5f7c (brlan0) |
++----------+---------+---------------------------+---------------------------------------------+
+| vcpe-001 | RUNNING | 10.107.200.101 (erouter0) | 3001:dae:0:e900:216:3eff:fe16:5f7d (brlan0) |
++----------+---------+---------------------------+---------------------------------------------+
+| vcpe-002 | RUNNING | 10.107.200.102 (erouter0) | 3001:dae:0:e900:216:3eff:fe16:5f7e (brlan0) |
++----------+---------+---------------------------+---------------------------------------------+
+
+# Manage specific instances
+lxc exec vcpe-001 bash
+lxc restart vcpe-002
+lxc stop vcpe-010
+```
+
+Each instance gets:
+- Container name: vcpe-{suffix} (e.g., vcpe-001)
+- Profile name: vcpe-{suffix}
+- NVRAM volume: vcpe-{suffix}-nvram
+- VLAN ID: 100 + offset (e.g., 001 → VLAN 101, 002 → VLAN 102)
+- MAC addresses: Base MAC + offset
+- WLAN interfaces: virt-wlan0-{suffix} through virt-wlan3-{suffix}
+
 
 ## Install ACS container
 
