@@ -1,0 +1,895 @@
+From 1f0af563fad17dd460a1a32037dc4d405093325a Mon Sep 17 00:00:00 2001
+From: Rob Vogelaar <revogelaar@gmail.com>
+Date: Mon, 16 Dec 2024 12:14:21 -0800
+Subject: [PATCH] patch
+
+Signed-off-by: Rob Vogelaar <revogelaar@gmail.com>
+---
+ source/sysevent/lib/libsysevent.c | 348 ++++++++++++++++++++++++++++++
+ 1 file changed, 348 insertions(+)
+
+diff --git a/source/sysevent/lib/libsysevent.c b/source/sysevent/lib/libsysevent.c
+index c463b887..4a8646df 100644
+--- a/source/sysevent/lib/libsysevent.c
++++ b/source/sysevent/lib/libsysevent.c
+@@ -628,6 +628,130 @@ static char *mtype2str(int mtype)
+  * Return Code   :
+  *    0              :
+  */
++
++#define PRINT_MESSAGE_MINIMAL
++
++
++int get_cmdline(char *name, size_t size, pid_t pid) {
++    char proc_path[256];
++
++    name[0] = '?';
++    name[1] = '\0';
++
++    if (pid == 0) return -1;
++
++    snprintf(proc_path, sizeof(proc_path), "/proc/%d/cmdline", pid);
++
++    FILE *file = fopen(proc_path, "r");
++    if (file == NULL) {
++        perror("Error opening process cmdline file");
++        return -1;
++    }
++
++    size_t bytesRead = fread(name, 1, size, file);
++    fclose(file);
++
++    if (bytesRead <= 0) {
++        perror("Error reading process cmdline");
++        return -1;
++    }
++
++    for (size_t i = 0; i < bytesRead; ++i) {
++        if (name[i] == '\0') {
++            name[i] = ' ';
++        }
++    }
++
++    if (bytesRead < size) {
++        name[bytesRead] = '\0';
++    } else {
++        name[size - 1] = '\0';
++    }
++
++    return 0;
++}
++
++#include <stdarg.h>
++#include <time.h>
++#include <unistd.h>
++
++#define SYSEVENTLOG_FILE "/tmp/sysevent.log"
++#define SYSEVENTLOG_CONTROL "/tmp/.syseventlog"   // Control file to enable/disable logging
++#define LOG_MSG_SIZE 1024
++
++#define LOG1(format, ...) \
++    do { \
++        /* First check if logging is enabled */ \
++        FILE *controlFile = fopen(SYSEVENTLOG_CONTROL, "r"); \
++        if (controlFile == NULL) { \
++            break; /* Exit if control file doesn't exist */ \
++        } \
++        fclose(controlFile); \
++        \
++        struct timespec ts; \
++        clock_gettime(CLOCK_MONOTONIC, &ts); \
++        FILE *logFile = fopen(SYSEVENTLOG_FILE, "a"); \
++        if (logFile != NULL) { \
++            fprintf(logFile, "%ld.%09ld "format, ts.tv_sec, ts.tv_nsec, ##__VA_ARGS__); \
++            fclose(logFile); \
++        } \
++    } while (0)
++
++#define LOG2(token) \
++    do { \
++        /* First check if logging is enabled */ \
++        FILE *controlFile = fopen(SYSEVENTLOG_CONTROL, "r"); \
++        if (controlFile == NULL) { \
++            break; /* Exit if control file doesn't exist */ \
++        } \
++        fclose(controlFile); \
++        \
++        struct timespec timestamp; \
++        clock_gettime(CLOCK_MONOTONIC, &timestamp); \
++        char logMsg[LOG_MSG_SIZE]; \
++        snprintf(logMsg, LOG_MSG_SIZE, "%ld.%09ld |%s|%u" , \
++            timestamp.tv_sec, timestamp.tv_nsec, \
++            __func__, \
++            token); \
++        FILE *logFile = fopen(SYSEVENTLOG_FILE, "a"); \
++        if (logFile != NULL) { \
++            fprintf(logFile, "%s\n", logMsg); \
++            fclose(logFile); \
++        } \
++    } while(0)
++
++#define LOG3(token) \
++    do { \
++        /* First check if logging is enabled */ \
++        FILE *controlFile = fopen(SYSEVENTLOG_CONTROL, "r"); \
++        if (controlFile == NULL) { \
++            break; /* Exit if control file doesn't exist */ \
++        } \
++        fclose(controlFile); \
++        \
++        struct timespec timestamp; \
++        clock_gettime(CLOCK_MONOTONIC, &timestamp); \
++        char CmdLine[512]; \
++        char parentCmdLine[512]; \
++        char logMsg[LOG_MSG_SIZE]; \
++        CmdLine[0] = '\0'; \
++        get_cmdline(CmdLine, sizeof(CmdLine), getpid()); \
++        parentCmdLine[0] = '\0'; \
++        get_cmdline(parentCmdLine, sizeof(parentCmdLine), getppid()); \
++        snprintf(logMsg, LOG_MSG_SIZE, "%ld.%09ld |%s|%u|%s|%s" , \
++            timestamp.tv_sec, timestamp.tv_nsec, \
++            __func__, \
++            token, \
++            CmdLine, \
++            parentCmdLine); \
++        FILE *logFile = fopen(SYSEVENTLOG_FILE, "a"); \
++        if (logFile != NULL) { \
++            fprintf(logFile, "%s\n", logMsg); \
++            fclose(logFile); \
++        } \
++    } while(0)
++
++
+ int SE_print_message(char* inmsg, int type)
+ {
+    switch(type) {
+@@ -643,64 +767,107 @@ int SE_print_message(char* inmsg, int type)
+          char *data                  = (char *)&(msg->data);
+          char *id                    = SE_msg_get_string(data, &id_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_OPEN_CONNECTION|%s|\n", id);
++#else
+          printf("|------- SE_MSG_OPEN_CONNECTION ---------|\n");
+          printf("| version       : %d\n", ntohl(msg->version));
+          printf("| id_bytes      : %d\n", id_size);
+          printf("| id            : %s\n", id);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_OPEN_CONNECTION_REPLY):
+       {
+          se_open_connection_reply_msg *msg = (se_open_connection_reply_msg *)inmsg;
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_OPEN_CONNECTION_REPLY|%x|\n", (unsigned int)(ntohl(msg->token_id)));
++#else
+          printf("|------ SE_MSG_OPEN_CONNECTION_REPLY ----|\n");
+          printf("| status        : 0x%x\n", ntohl(msg->status));
+          printf("| token_id      : %x\n", (unsigned int)(ntohl(msg->token_id)));
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_CLOSE_CONNECTION):
+       {
++
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_CLOSE_CONNECTION|\n");
++#else
+          printf("|------- SE_MSG_CLOSE_CONNECTION --------|\n");
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_CLOSE_CONNECTION_REPLY):
+       {
++
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_CLOSE_CONNECTION_REPLY|\n");
++#else
+          printf("|----- SE_MSG_CLOSE_CONNECTION_REPLY ----|\n");
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_PING):
+       {
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_PING|\n");
++#else
+          printf("|--------------- SE_MSG_PING ------------|\n");
+          printf("| reserved      :   \n");
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_PING_REPLY):
+       {
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_PING_REPLY|\n");
++#else
+          printf("|---------- SE_MSG_PING_REPLY -----------|\n");
+          printf("| reserved      :   \n");
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_DEBUG):
+       {
+          se_debug_msg *msg = (se_debug_msg *)inmsg;
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_DEBUG|\n");
++#else
+          printf("|------------- SE_MSG_DEBUG -------------|\n");
+          printf("| debug level   : 0x%x\n", ntohl(msg->level));
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_NEW_CLIENT):
+       {
+          se_new_client_msg *msg = (se_new_client_msg *)inmsg;
++
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_NEW_CLIENT|%x|\n", (unsigned int)(ntohl(msg->token_id)));
++#else
+          printf("|---------- SE_MSG_NEW_CLIENT -----------|\n");
+          printf("| token_id      : %x\n", (unsigned int)(ntohl(msg->token_id)));
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_DIE):
+@@ -714,10 +881,15 @@ int SE_print_message(char* inmsg, int type)
+          char *data      = (char *)&(msg->data);
+          char *subject   = SE_msg_get_string(data, &subject_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_GET|%s|\n", subject);
++#else
+          printf("|------------- SE_MSG_GET ---------------|\n");
+          printf("| subject_bytes : %d\n", subject_size);
+          printf("| subject       : %s\n", subject);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }      
+       case(SE_MSG_GET_DATA):
+@@ -727,10 +899,15 @@ int SE_print_message(char* inmsg, int type)
+          char *data      = (char *)&(msg->data);
+          char *subject   = SE_msg_get_string(data, &subject_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_GET_DATA|%s|\n", subject);
++#else
+          printf("|------------- SE_MSG_GET ---------------|\n");
+          printf("| subject_bytes : %d\n", subject_size);
+          printf("| subject       : %s\n", subject);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_GET_REPLY):
+@@ -743,6 +920,9 @@ int SE_print_message(char* inmsg, int type)
+          data += subject_size;
+          char *value           =  SE_msg_get_string(data, &value_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_GET_REPLY|%s|%s|\n", subject, value);
++#else
+          printf("|------------ SE_MSG_GET_REPLY ----------|\n");
+          printf("| status        : 0x%x\n", ntohl(msg->status));
+          printf("| subject_bytes : %d\n", subject_size);
+@@ -750,6 +930,8 @@ int SE_print_message(char* inmsg, int type)
+          printf("| subject       : %s\n", subject);
+          printf("| value         : %s\n", value);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_GET_DATA_REPLY):
+@@ -762,12 +944,17 @@ int SE_print_message(char* inmsg, int type)
+          data += subject_size;
+          SE_msg_get_data(data, &value_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_GET_DATA_REPLY|%s|\n", subject);
++#else
+          printf("|------------ SE_MSG_GET_DATA_REPLY ----------|\n");
+          printf("| status        : 0x%x\n", ntohl(msg->status));
+          printf("| subject_bytes : %d\n", subject_size);
+          printf("| value_bytes   : %d\n", value_size);
+          printf("| subject       : %s\n", subject);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_SET):
+@@ -780,6 +967,9 @@ int SE_print_message(char* inmsg, int type)
+          data += subject_size;
+          char *value           =  SE_msg_get_string(data, &value_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_SET|%s|%s|\n", subject, value);
++#else
+          printf("|-------------- SE_MSG_SET --------------|\n");
+          printf("| source        : %d\n", msg->source);
+          printf("| tid           : %d\n", msg->tid);
+@@ -788,6 +978,8 @@ int SE_print_message(char* inmsg, int type)
+          printf("| subject       : %s\n", subject);
+          printf("| value         : %s\n", value);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+ 
+@@ -801,6 +993,9 @@ int SE_print_message(char* inmsg, int type)
+          data += subject_size;
+          SE_msg_get_data(data, &value_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_SET_DATA|%s|\n", subject);
++#else
+          printf("|-------------- SE_MSG_SET_DATA --------------|\n");
+          printf("| source        : %d\n", msg->source);
+          printf("| tid           : %d\n", msg->tid);
+@@ -808,14 +1003,22 @@ int SE_print_message(char* inmsg, int type)
+          printf("| value_bytes   : %d\n", value_size);
+          printf("| subject       : %s\n", subject);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_SET_REPLY):
+       {
+          se_set_reply_msg *msg = (se_set_reply_msg *)inmsg;
++
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_SET_REPLY|\n");
++#else
+          printf("|----------- SE_MSG_SET_REPLY -----------|\n");
+          printf("| status        : 0x%x\n", ntohl(msg->status));
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_SET_UNIQUE):
+@@ -828,12 +1031,17 @@ int SE_print_message(char* inmsg, int type)
+          data += subject_size;
+          char *value           =  SE_msg_get_string(data, &value_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_SET_UNIQUE|%s|%s|\n", subject, value);
++#else
+          printf("|------------- SE_MSG_SET_UNIQUE --------|\n");
+          printf("| subject_bytes : %d\n", subject_size);
+          printf("| value_bytes   : %d\n", value_size);
+          printf("| subject       : %s\n", subject);
+          printf("| value         : %s\n", value);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_SET_UNIQUE_REPLY):
+@@ -844,11 +1052,16 @@ int SE_print_message(char* inmsg, int type)
+          char *subject         = SE_msg_get_string(data, &subject_size);
+ 
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_SET_UNIQUE_REPLY|%s|\n", subject);
++#else
+          printf("|---------- SE_MSG_SET_UNIQUE_REPLY -----|\n");
+          printf("| status        : 0x%x\n", ntohl(msg->status));
+          printf("| subject_bytes : %d\n", subject_size);
+          printf("| subject       : %s\n", subject);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_ITERATE_GET):
+@@ -858,11 +1071,16 @@ int SE_print_message(char* inmsg, int type)
+          char *data      = (char *)&(msg->data);
+          char *subject   = SE_msg_get_string(data, &subject_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_ITERATE_GET|%x|%s|\n", ntohl(msg->iterator), subject);
++#else
+          printf("|----------- SE_MSG_ITERATE_GET ---------|\n");
+          printf("| iterator      : %x\n", ntohl(msg->iterator));
+          printf("| subject_bytes : %d\n", subject_size);
+          printf("| subject       : %s\n", subject);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_ITERATE_GET_REPLY):
+@@ -875,6 +1093,9 @@ int SE_print_message(char* inmsg, int type)
+          data += subject_size;
+          char *value           =  SE_msg_get_string(data, &value_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_ITERATE_GET_REPLY|%x|%s|%s|\n", ntohl(msg->iterator), subject, value);
++#else
+          printf("|-------- SE_MSG_ITERATE_GET_REPLY ------|\n");
+          printf("| status        : 0x%x\n", ntohl(msg->status));
+          printf("| iterator      : %x\n", ntohl(msg->iterator));
+@@ -883,6 +1104,8 @@ int SE_print_message(char* inmsg, int type)
+          printf("| subject       : %s\n", subject);
+          printf("| value         : %s\n", value);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_DEL_UNIQUE):
+@@ -892,11 +1115,16 @@ int SE_print_message(char* inmsg, int type)
+          char *data            = (char *)&(msg->data);
+          char *subject         = SE_msg_get_string(data, &subject_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_DEL_UNIQUE|%x|%s|\n", ntohl(msg->iterator), subject);
++#else
+          printf("|----------- SE_MSG_DEL_UNIQUE ----------|\n");
+          printf("| iterator      : %x\n", ntohl(msg->iterator));
+          printf("| subject_bytes : %d\n", subject_size);
+          printf("| subject       : %s\n", subject);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_NEXT_ITERATOR_GET):
+@@ -906,11 +1134,16 @@ int SE_print_message(char* inmsg, int type)
+          char *data            = (char *)&(msg->data);
+          char *subject         = SE_msg_get_string(data, &subject_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_NEXT_ITERATOR_GET|%x|%s|\n", ntohl(msg->iterator), subject);
++#else
+          printf("|--------- SE_MSG_NEXT_ITERATOR_GET -----|\n");
+          printf("| iterator      : %x\n", ntohl(msg->iterator));
+          printf("| subject_bytes : %d\n", subject_size);
+          printf("| subject       : %s\n", subject);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_NEXT_ITERATOR_GET_REPLY):
+@@ -920,12 +1153,17 @@ int SE_print_message(char* inmsg, int type)
+          char *data            = (char *)&(msg->data);
+          char *subject         = SE_msg_get_string(data, &subject_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_NEXT_ITERATOR_GET_REPLY|%x|%s|\n", ntohl(msg->iterator), subject);
++#else
+          printf("|---- SE_MSG_NEXT_ITERATOR_GET_REPLY ----|\n");
+          printf("| status        : 0x%x\n", ntohl(msg->status));
+          printf("| iterator      : %x\n", ntohl(msg->iterator));
+          printf("| subject_bytes : %d\n", subject_size);
+          printf("| subject       : %s\n", subject);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_SET_OPTIONS):
+@@ -935,19 +1173,30 @@ int SE_print_message(char* inmsg, int type)
+          char *data            = (char *)&(msg->data);
+          char *subject         = SE_msg_get_string(data, &subject_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_SET_OPTIONS|%s|0x%x|\n", subject, ntohl(msg->flags));
++#else
+          printf("|---------- SE_MSG_SET_OPTIONS ----------|\n");
+          printf("| subject_bytes : %d\n", subject_size);
+          printf("| subject       : %s\n", subject);
+          printf("| flags         : 0x%x\n", ntohl(msg->flags));
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_SET_OPTIONS_REPLY):
+       {
+          se_set_options_reply_msg *msg = (se_set_options_reply_msg *)inmsg;
++
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_SET_OPTIONS_REPLY|\n");
++#else
+          printf("|------ SE_MSG_SET_OPTIONS_REPLY --------|\n");
+          printf("| status        : 0x%x\n", ntohl(msg->status));
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_SET_ASYNC_ACTION):
+@@ -964,6 +1213,9 @@ int SE_print_message(char* inmsg, int type)
+          data += function_size;
+ 
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_SET_ASYNC_ACTION|0x%x|%d|%s|%s|\n", ntohl(msg->flags), ntohl(msg->num_params), subject, function);
++#else
+          printf("|-------- SE_MSG_SET_ASYNC_ACTION -------|\n");
+          printf("| flags         : 0x%x\n", ntohl(msg->flags));
+          printf("| num_params    : %d\n", ntohl(msg->num_params));
+@@ -980,6 +1232,8 @@ int SE_print_message(char* inmsg, int type)
+             data += param_size;
+          }
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_SET_ASYNC_MESSAGE):
+@@ -989,38 +1243,61 @@ int SE_print_message(char* inmsg, int type)
+          char *data      = (char *)&(msg->data);
+          char *subject   = SE_msg_get_string(data, &subject_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_SET_ASYNC_MESSAGE|0x%x|%s|\n", ntohl(msg->flags), subject);
++#else
+          printf("|-------- SE_MSG_SET_ASYNC_MESSAGE ------|\n");
+          printf("| subject_bytes : %d\n", subject_size);
+          printf("| subject       : %s\n", subject);
+          printf("| flags         : 0x%x\n", ntohl(msg->flags));
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_SET_ASYNC_REPLY):
+       {
+          se_set_async_reply_msg *msg = (se_set_async_reply_msg *)inmsg;
++
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_SET_ASYNC_REPLY|0x%x 0x%x|\n", (msg->async_id).trigger_id, (msg->async_id).action_id);
++#else
+          printf("|------- SE_MSG_SET_ASYNC_REPLY ---------|\n");
+          printf("| status        : 0x%x\n", ntohl(msg->status));
+          printf("| async_id      : 0x%x 0x%x\n", 
+                     (msg->async_id).trigger_id, (msg->async_id).action_id );
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_REMOVE_ASYNC):
+       {
+          se_remove_async_msg *msg = (se_remove_async_msg *)inmsg;
++
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_REMOVE_ASYNC|0x%x 0x%x|\n", (msg->async_id).trigger_id, (msg->async_id).action_id);
++#else
+          printf("|---------- SE_MSG_REMOVE_ASYNC ---------|\n");
+          printf("| async_id      : 0x%x 0x%x\n", 
+                     (msg->async_id).trigger_id, (msg->async_id).action_id );
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_REMOVE_ASYNC_REPLY):
+       {
+          se_remove_async_reply_msg *msg = (se_remove_async_reply_msg *)inmsg;
++
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_REMOVE_ASYNC_REPLY|\n");
++#else
+          printf("|-------- SE_MSG_REMOVE_ASYNC_REPLY -----|\n");
+          printf("| status        : 0x%x\n", ntohl(msg->status));
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_SEND_NOTIFICATION):
+@@ -1034,6 +1311,9 @@ int SE_print_message(char* inmsg, int type)
+          char *value              =  SE_msg_get_string(data, &value_size);
+          data += value_size;
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_SEND_NOTIFICATION|0x%x 0x%x|0x%x|%s|%s|\n", (msg->async_id).trigger_id, (msg->async_id).action_id, ntohl(msg->flags), subject, value);
++#else
+          printf("|------- SE_MSG_SEND_NOTIFICATION -------|\n");
+          printf("| source        : %d\n", msg->source);
+          printf("| tid           : %d\n", msg->tid);
+@@ -1046,6 +1326,8 @@ int SE_print_message(char* inmsg, int type)
+          printf("| value_bytes   : %d\n", value_size);
+          printf("| value         : %s\n", value);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_RUN_EXTERNAL_EXECUTABLE):
+@@ -1059,6 +1341,9 @@ int SE_print_message(char* inmsg, int type)
+          char *value              =  SE_msg_get_string(data, &value_size);
+          data += value_size;
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_RUN_EXTERNAL_EXECUTABLE|0x%x 0x%x|0x%x|%s|%s|\n", (msg->async_id).trigger_id, (msg->async_id).action_id, ntohl(msg->flags), subject, value);
++#else
+          printf("|---- SE_MSG_RUN_EXTERNAL_EXECUTABLE ----|\n");
+          printf("| token_id      : %x\n", (unsigned int)(ntohl(msg->token_id)));
+          printf("| async_id      : 0x%x 0x%x\n", 
+@@ -1069,6 +1354,8 @@ int SE_print_message(char* inmsg, int type)
+          printf("| value_bytes   : %d\n", value_size);
+          printf("| value         : %s\n", value);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_NOTIFICATION):
+@@ -1082,6 +1369,9 @@ int SE_print_message(char* inmsg, int type)
+          char *value              =  SE_msg_get_string(data, &value_size);
+          data += value_size;
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_NOTIFICATION|0x%x 0x%x|%s|%s|\n", (msg->async_id).trigger_id, (msg->async_id).action_id, subject, value);
++#else
+          printf("|--------- SE_MSG_NOTIFICATION ----------|\n");
+          printf("| source        : %d\n", msg->source);
+          printf("| tid           : %d\n", msg->tid);
+@@ -1092,18 +1382,25 @@ int SE_print_message(char* inmsg, int type)
+          printf("| value_bytes   : %d\n", value_size);
+          printf("| value         : %s\n", value);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_EXECUTE_SERIALLY):
+       {
+          se_run_serially_msg *msg = (se_run_serially_msg *)inmsg;
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_EXECUTE_SERIALLY|\n");
++#else
+          printf("|------- SE_MSG_EXECUTE_SERIALLY --------|\n");
+          printf("| async_id      : 0x%x 0x%x\n",
+                     (msg->async_id).trigger_id, (msg->async_id).action_id );
+          printf("| num_msgs      : %d\n", (msg->num_msgs));
+          printf("| data          : %p\n", (msg->data));
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       case(SE_MSG_SHOW_DATA_ELEMENTS):
+@@ -1113,10 +1410,15 @@ int SE_print_message(char* inmsg, int type)
+          char *data      = (char *)&(msg->data);
+          char *filename   = SE_msg_get_string(data, &filename_size);
+ 
++#ifdef PRINT_MESSAGE_MINIMAL
++         LOG1("|SE_MSG_SHOW_DATA_ELEMENTS|\n");
++#else
+          printf("|------ SE_MSG_SHOW_DATA_ELEMENTS -------|\n");
+          printf("| filename_size : %d\n", filename_size);
+          printf("| filename      : %s\n", filename);
+          printf("|----------------------------------------|\n");
++#endif
++
+          break;
+       }
+       default:
+@@ -2488,6 +2790,9 @@ int sysevent_open (char *ip, unsigned short port, int version, char *id, token_t
+    // this is an opaque value
+    
+    *token = ntohl(reply_msg_body->token_id);
++
++   LOG3(*token);
++
+    return(sockfd);
+ }
+ 
+@@ -2570,6 +2875,9 @@ int sysevent_open_data (char *ip, unsigned short port, int version, char *id, to
+    // this is an opaque value
+    
+    *token = ntohl(reply_msg_body->token_id);
++
++   LOG3(*token);
++
+    v_secure_system("echo fname %s: fd %d >> /tmp/sys_d.txt",__FUNCTION__,sockfd);
+ 
+    return(sockfd);
+@@ -2649,6 +2957,9 @@ int sysevent_local_open_data (char *target, int version, char *id, token_t *toke
+    // this is an opaque value
+    
+    *token = ntohl(reply_msg_body->token_id);
++
++   LOG3(*token);
++
+    v_secure_system("echo fname %s: fd %d >> /tmp/sys_d.txt",__FUNCTION__,sockfd);
+    return(sockfd);
+ }
+@@ -2740,6 +3051,9 @@ int sysevent_local_open (char *target, int version, char *id, token_t *token)
+    // this is an opaque value
+    
+    *token = ntohl(reply_msg_body->token_id);
++
++   LOG3(*token);
++
+    return(sockfd);
+ }
+ 
+@@ -2934,6 +3248,8 @@ int sysevent_get (const int fd, const token_t token, const char *inbuf, char *ou
+    se_get_msg   *send_msg_body;
+    int          inbytes;
+ 
++   LOG2(token);
++
+    if ((outbuf == NULL) || (outbytes <= 0)) {
+       return(ERR_BAD_BUFFER);
+    }
+@@ -3054,6 +3370,8 @@ int sysevent_get_data(const int fd, const token_t token, const char *inbuf, char
+    se_get_msg   *send_msg_body;
+    int          inbytes;
+ 
++   LOG2(token);
++
+    if (NULL == inbuf || NULL == outbuf || 0 == (inbytes = strlen(inbuf)) || bufsizecopied == NULL ) {
+       return(ERR_BAD_BUFFER);
+    }
+@@ -3263,6 +3581,8 @@ static int sysevent_set_private (const int fd, const token_t token, const char *
+  */
+ int sysevent_set (const int fd, const token_t token, const char *name, const char *value,  int conf_req) 
+ {
++   LOG2(token);
++
+    return(sysevent_set_private(fd,token,name,value,0,0));
+ }
+ 
+@@ -3378,6 +3698,8 @@ static int sysevent_set_data_private (const int fd, const token_t token, const c
+  */
+ int sysevent_set_data (const int fd, const token_t token, const char *name, const char *value, int value_length) 
+ {
++   LOG2(token);
++
+    return (sysevent_set_data_private(fd,token,name,value,value_length,0,0));
+ }
+ 
+@@ -3412,6 +3734,8 @@ unsigned int sysevent_get_binmsg_maxsize()
+  */
+ int sysevent_unset (const int fd, const token_t token, const char *name)
+ {
++    LOG2(token);
++
+     return(sysevent_set_private(fd,token,name,NULL,0,0));
+ }
+ 
+@@ -3433,6 +3757,8 @@ int sysevent_unset (const int fd, const token_t token, const char *name)
+  */
+ int sysevent_set_with_tid (const int fd, const token_t token, const char *name, const char *value, const int source, const int tid) 
+ {
++   LOG2(token);
++
+    return(sysevent_set_private(fd,token,name,value,source,tid));
+ }
+ 
+@@ -3458,6 +3784,8 @@ int sysevent_set_unique (const int fd, const token_t token, const char *name, co
+    se_set_unique_msg   *send_msg_body;
+    int                  subbytes;
+ 
++   LOG2(token);
++
+    if (NULL == name || 0 == (subbytes = strlen(name)) ) {
+       return(ERR_BAD_BUFFER);
+    }
+@@ -3573,6 +3901,8 @@ int sysevent_get_unique (const int fd, const token_t token, const char *inbuf, u
+    se_iterate_get_msg   *send_msg_body;
+    int                   inbytes;
+ 
++   LOG2(token);
++
+    if (NULL == inbuf || NULL == subjectbuf || NULL == valuebuf || 0 == (inbytes = strlen(inbuf)) ) {
+       return(ERR_BAD_BUFFER);
+    }
+@@ -3706,6 +4036,8 @@ int sysevent_del_unique(const int fd, const token_t token, const char *name, uns
+    se_buffer            send_msg_buffer;
+    se_del_unique_msg   *send_msg_body;
+ 
++   LOG2(token);
++
+    if (0 > fd) {
+       return(ERR_NOT_CONNECTED);
+    }
+@@ -3763,6 +4095,8 @@ int sysevent_get_next_iterator(const int fd, const token_t token, const char *na
+    se_iterate_get_iterator_msg   *send_msg_body;
+    int                            inbytes;
+ 
++   LOG2(token);
++
+    if (NULL == name || 0 == (inbytes = strlen(name)) ) {
+       return(ERR_BAD_BUFFER);
+    }
+@@ -3843,6 +4177,8 @@ int sysevent_set_options (const int fd, const token_t token, const char *name, c
+    se_set_options_msg   *send_msg_body;
+    int                   subbytes;
+ 
++   LOG2(token);
++
+    if (NULL == name || 0 == (subbytes = strlen(name)) ) {
+       return(ERR_BAD_BUFFER);
+    }
+@@ -3944,6 +4280,8 @@ int sysevent_setcallback(const int fd, const token_t token, action_flag_t flags,
+    unsigned int             funcbytes;
+    unsigned int             parambytes = 0;
+ 
++   LOG2(token);
++
+    async_id->trigger_id = async_id->action_id = htonl(0);
+    if (NULL == subject || NULL == function || 
+        0 == strlen(subject) || 0 == strlen(function) ) {
+@@ -4059,6 +4397,8 @@ int sysevent_setnotification(const int fd, const token_t token, char *subject, a
+    se_set_async_message_msg *send_msg_body;
+    int                       subbytes; 
+ 
++   LOG2(token);
++
+    async_id->trigger_id = async_id->action_id = htonl(0);
+    if (NULL == subject) { 
+       return(ERR_BAD_BUFFER);
+@@ -4158,6 +4498,8 @@ int sysevent_rmcallback(const int fd, const token_t token, async_id_t async_id)
+    se_buffer            send_msg_buffer;
+    se_remove_async_msg  *send_msg_body;
+ 
++   LOG2(token);
++
+    if (0 > fd) {
+       return(ERR_NOT_CONNECTED);
+    }
+@@ -4198,6 +4540,8 @@ int sysevent_rmcallback(const int fd, const token_t token, async_id_t async_id)
+  */
+ int sysevent_rmnotification(const int fd, const token_t token, async_id_t async_id)
+ {
++   LOG2(token);
++
+    return(sysevent_rmcallback(fd, token, async_id));
+ }
+ 
+@@ -4228,6 +4572,8 @@ int sysevent_rmnotification(const int fd, const token_t token, async_id_t async_
+  */
+ int sysevent_getnotification (const int fd, const token_t token, char *namebuf, int *namebytes, char *valbuf, int *valbytes, async_id_t *async_id) 
+ {
++   LOG2(token);
++
+    if (NULL == namebytes || NULL == valbytes) {
+      return(ERR_BAD_BUFFER);
+    }
+@@ -4363,6 +4709,8 @@ notif_reply_received:
+  */
+ int sysevent_getnotification_data (const int fd, const token_t token, char *namebuf, int *namebytes, char *valbuf, int *valbytes, async_id_t *async_id) 
+ {
++   LOG2(token);
++
+    if (NULL == namebytes || NULL == valbytes) {
+      return(ERR_BAD_BUFFER);
+    }
+-- 
+2.25.1
+

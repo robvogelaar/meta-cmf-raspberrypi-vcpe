@@ -1,0 +1,36 @@
+From 331a6a3978e915e098262fc586194cb820498f0f Mon Sep 17 00:00:00 2001
+From: Rob Vogelaar <revogelaar@gmail.com>
+Date: Wed, 24 Mar 2021 23:11:45 -0700
+Subject: [PATCH 5/9] more tweaks to codesearch
+
+Signed-off-by: Rob Vogelaar <revogelaar@gmail.com>
+---
+ tracing/tracing/ui/extras/chrome/codesearch.html | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/tracing/tracing/ui/extras/chrome/codesearch.html b/tracing/tracing/ui/extras/chrome/codesearch.html
+index 60910a708..8411d5c15 100644
+--- a/tracing/tracing/ui/extras/chrome/codesearch.html
++++ b/tracing/tracing/ui/extras/chrome/codesearch.html
+@@ -32,12 +32,14 @@ tr.exportTo('tr.ui.e.chrome', function() {
+     set searchPhrase(phrase) {
+       const link = Polymer.dom(this.$.codesearchLink);
+ 
+-      const codeSearchURL =
+-        'https://cs.chromium1.org/search/?sq=package:chromium&type=cs&q=';
+-
++      //const codeSearchURL =
++      //  'https://cs.chromium1.org/search/?sq=package:chromium&type=cs&q=';
+       //link.setAttribute('href', codeSearchURL + encodeURIComponent(phrase));
+-      link.setAttribute('href', window.location.href.split('&cmd=')[0]+'&cmd=' + encodeURIComponent(phrase.split(':')[1].split(' ')[0]));
+ 
++      //link.setAttribute('href', window.location.href.split('&cmd=')[0]+'&cmd=' + encodeURIComponent(phrase.split(':')[1].split(' ')[0]));
++      var searchParams = new URLSearchParams(window.location.search)
++      searchParams.set("cmd", encodeURIComponent(phrase.split(':')[1]));
++      link.setAttribute('href', window.location.pathname.replace('forkstat-iframe', 'forkstat') + '?' + searchParams.toString());
+     },
+ 
+     onClick(clickEvent) {
+-- 
+2.25.1
+
