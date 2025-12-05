@@ -1,0 +1,101 @@
+From e0e48eb8ff5516b198224927dc9ba216ffed1191 Mon Sep 17 00:00:00 2001
+From: Rob Vogelaar <revogelaar@gmail.com>
+Date: Sat, 27 Mar 2021 17:19:56 -0700
+Subject: [PATCH 9/9] further tweaks
+
+Signed-off-by: Rob Vogelaar <revogelaar@gmail.com>
+---
+ .../ui/analysis/single_event_sub_view.html    |  4 +++
+ tracing/tracing/ui/base/table.html            |  2 +-
+ .../tracing/ui/extras/chrome/codesearch.html  | 26 +++++++++----------
+ 3 files changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/tracing/tracing/ui/analysis/single_event_sub_view.html b/tracing/tracing/ui/analysis/single_event_sub_view.html
+index 171e82f7a..b3381e61a 100644
+--- a/tracing/tracing/ui/analysis/single_event_sub_view.html
++++ b/tracing/tracing/ui/analysis/single_event_sub_view.html
+@@ -136,12 +136,14 @@ Polymer({
+       rows.push({ name: 'Category', value: event.category });
+     }
+ 
++    /*
+     if (event.model !== undefined) {
+       const ufc = event.model.getUserFriendlyCategoryFromEvent(event);
+       if (ufc !== undefined) {
+         rows.push({ name: 'User Friendly Category', value: ufc });
+       }
+     }
++    */
+ 
+     if (event.name) {
+       rows.push({ name: 'Name', value: event.name });
+@@ -183,6 +185,7 @@ Polymer({
+       });
+     }
+ 
++    /*
+     if (event.subSlices !== undefined && event.subSlices.length !== 0) {
+       if (event.selfTime) {
+         rows.push({
+@@ -207,6 +210,7 @@ Polymer({
+         rows.push({ name: 'CPU Self Time', value: cpuSelfTimeEl });
+       }
+     }
++    */
+ 
+     if (event.durationInUserTime) {
+       rows.push({
+diff --git a/tracing/tracing/ui/base/table.html b/tracing/tracing/ui/base/table.html
+index a701c6f95..fcabec542 100644
+--- a/tracing/tracing/ui/base/table.html
++++ b/tracing/tracing/ui/base/table.html
+@@ -70,7 +70,7 @@ tr.exportTo('tr.ui.b', function() {
+         border-collapse: separate;
+         border-spacing: 0;
+         border-width: 0;
+-        width: 800px;
++        width: 1000px;
+         -webkit-user-select: initial;
+       }
+ 
+diff --git a/tracing/tracing/ui/extras/chrome/codesearch.html b/tracing/tracing/ui/extras/chrome/codesearch.html
+index ead325f10..81ff56833 100644
+--- a/tracing/tracing/ui/extras/chrome/codesearch.html
++++ b/tracing/tracing/ui/extras/chrome/codesearch.html
+@@ -39,20 +39,20 @@ tr.exportTo('tr.ui.e.chrome', function() {
+ 
+       var searchParams = new URLSearchParams(window.location.search)
+       //searchParams.set("cmd", encodeURIComponent(phrase.split(':')[1]));
+-      if (phrase.split(':')[1].startsWith('/bin/sh -c '))
+-        searchParams.set("cmd", encodeURIComponent(phrase.split(':')[1].split(' ')[2]));
+-      else if (phrase.split(':')[1].startsWith('/bin/sh '))
+-        searchParams.set("cmd", encodeURIComponent(phrase.split(':')[1].split(' ')[1]));
+-      else if (phrase.split(':')[1].startsWith('/bin/bash '))
+-        searchParams.set("cmd", encodeURIComponent(phrase.split(':')[1].split(' ')[1]));
+-      else if (phrase.split(':')[1].startsWith('sh -c '))
+-        searchParams.set("cmd", encodeURIComponent(phrase.split(':')[1].split(' ')[2]));
+-      else if (phrase.split(':')[1].startsWith('sh -c sh '))
+-        searchParams.set("cmd", encodeURIComponent(phrase.split(':')[1].split(' ')[3]));
+-      else if (phrase.split(':')[1].startsWith('sh '))
+-        searchParams.set("cmd", encodeURIComponent(phrase.split(':')[1].split(' ')[1]));
++      if (phrase.split(' ').slice(1).join(' ').startsWith('/bin/sh -c '))
++        searchParams.set("cmd", encodeURIComponent(phrase.split(' ').slice(1).join(' ').split(' ')[2]));
++      else if (phrase.split(' ').slice(1).join(' ').startsWith('/bin/sh '))
++        searchParams.set("cmd", encodeURIComponent(phrase.split(' ').slice(1).join(' ').split(' ')[1]));
++      else if (phrase.split(' ').slice(1).join(' ').startsWith('/bin/bash '))
++        searchParams.set("cmd", encodeURIComponent(phrase.split(' ').slice(1).join(' ').split(' ')[1]));
++      else if (phrase.split(' ').slice(1).join(' ').startsWith('sh -c '))
++        searchParams.set("cmd", encodeURIComponent(phrase.split(' ').slice(1).join(' ').split(' ')[2]));
++      else if (phrase.split(' ').slice(1).join(' ').startsWith('sh -c sh '))
++        searchParams.set("cmd", encodeURIComponent(phrase.split(' ').slice(1).join(' ').split(' ')[3]));
++      else if (phrase.split(' ').slice(1).join(' ').startsWith('sh '))
++        searchParams.set("cmd", encodeURIComponent(phrase.split(' ').slice(1).join(' ').split(' ')[1]));
+       else
+-        searchParams.set("cmd", encodeURIComponent(phrase.split(':')[1].split(' ')[0]));
++        searchParams.set("cmd", encodeURIComponent(phrase.split(' ').slice(1).join(' ').split(' ')[0]));
+ 
+       link.setAttribute('href', window.location.pathname.replace('forkstat-iframe', 'forkstat') + '?' + searchParams.toString());
+     },
+-- 
+2.25.1
+

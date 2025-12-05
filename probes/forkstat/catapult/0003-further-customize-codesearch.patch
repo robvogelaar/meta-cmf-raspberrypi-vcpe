@@ -1,0 +1,26 @@
+From 7f16714abe5436f251874577200b6c6ca318a7c0 Mon Sep 17 00:00:00 2001
+From: Rob Vogelaar <revogelaar@gmail.com>
+Date: Tue, 23 Mar 2021 21:28:34 -0700
+Subject: [PATCH 3/9] further customize codesearch
+
+Signed-off-by: Rob Vogelaar <revogelaar@gmail.com>
+---
+ tracing/tracing/ui/extras/chrome/codesearch.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tracing/tracing/ui/extras/chrome/codesearch.html b/tracing/tracing/ui/extras/chrome/codesearch.html
+index 26fa16107..60910a708 100644
+--- a/tracing/tracing/ui/extras/chrome/codesearch.html
++++ b/tracing/tracing/ui/extras/chrome/codesearch.html
+@@ -36,7 +36,7 @@ tr.exportTo('tr.ui.e.chrome', function() {
+         'https://cs.chromium1.org/search/?sq=package:chromium&type=cs&q=';
+ 
+       //link.setAttribute('href', codeSearchURL + encodeURIComponent(phrase));
+-      link.setAttribute('href', window.location.href.split('&cmd=')[0]+'&cmd=' + encodeURIComponent(phrase.split(':')[1]));
++      link.setAttribute('href', window.location.href.split('&cmd=')[0]+'&cmd=' + encodeURIComponent(phrase.split(':')[1].split(' ')[0]));
+ 
+     },
+ 
+-- 
+2.25.1
+

@@ -1,0 +1,267 @@
+From 43211c9538d48944b3633adcd8c63542537514b0 Mon Sep 17 00:00:00 2001
+From: Rob Vogelaar <revogelaar@gmail.com>
+Date: Mon, 16 Dec 2024 11:28:28 -0800
+Subject: [PATCH] patch
+
+Signed-off-by: Rob Vogelaar <revogelaar@gmail.com>
+---
+ source/syscfg/lib/syscfg_lib.c | 151 +++++++++++++++++++++++++++++++++
+ 1 file changed, 151 insertions(+)
+
+diff --git a/source/syscfg/lib/syscfg_lib.c b/source/syscfg/lib/syscfg_lib.c
+index 88883e06..19309ca2 100644
+--- a/source/syscfg/lib/syscfg_lib.c
++++ b/source/syscfg/lib/syscfg_lib.c
+@@ -116,6 +116,129 @@ static void dump_maps (void)
+ 
+ #endif
+ 
++#include <string.h>
++#include <stdlib.h>
++#include <unistd.h>
++#include <sys/types.h>
++
++int get_cmdline(char *name, size_t size, pid_t pid) {
++    char proc_path[256];
++
++    name[0] = '?';
++    name[1] = '\0';
++
++    if (pid == 0) return -1;
++
++    snprintf(proc_path, sizeof(proc_path), "/proc/%d/cmdline", pid);
++    FILE *file = fopen(proc_path, "r");
++    if (file == NULL) {
++        perror("syscfg debug, Error opening process cmdline file");
++        perror(proc_path);
++        return -1;
++    }
++
++    size_t bytesRead = fread(name, 1, size, file);
++    fclose(file);
++
++    if (bytesRead <= 0) {
++        perror("syscfg debug, Error reading process cmdline");
++        return -1;
++    }
++
++    for (size_t i = 0; i < bytesRead; ++i) {
++        if (name[i] == '\0') {
++            name[i] = ' ';
++        }
++    }
++
++    if (bytesRead < size) {
++        name[bytesRead] = '\0';
++    } else {
++        name[size - 1] = '\0';
++    }
++
++    return 0;
++}
++
++
++#define BUFFER_SIZE 256
++
++void getCurrentProcessName(char *processName) {
++    FILE *fp;
++    char buffer[BUFFER_SIZE];
++    char *token;
++
++    fp = fopen("/proc/self/status", "r");
++    if (fp == NULL) {
++        perror("Error opening file");
++        return;
++    }
++
++    while (fgets(buffer, BUFFER_SIZE, fp) != NULL) {
++        if (strncmp(buffer, "Name:", 5) == 0) {
++            token = strtok(buffer, "\t");
++            token = strtok(NULL, "\t\n");
++            if (token != NULL) {
++                strcpy(processName, token);
++                break;
++            }
++        }
++    }
++
++    fclose(fp);
++}
++
++
++#include <time.h>
++
++#define LOG_MSG_SIZE 1024
++#define SYSCFGLOG_FILE "/tmp/syscfg.log"     // Actual log file
++#define SYSCFGLOG_CONTROL "/tmp/.syscfglog"   // Control file to enable/disable logging
++
++#define SYSCFGLOGS(name, val) SYSCFGLOG(name, val, "%s")
++#define SYSCFGLOGU(name, val) SYSCFGLOG(name, val, "%lu")
++#define SYSCFGLOG(name, val, valType) \
++    do { \
++        /* First check if logging is enabled */ \
++        FILE *controlFile = fopen(SYSCFGLOG_CONTROL, "r"); \
++        if (controlFile == NULL) { \
++            break; /* Exit if control file doesn't exist */ \
++        } \
++        fclose(controlFile); \
++        \
++        struct timespec timestamp; \
++        clock_gettime(CLOCK_MONOTONIC, &timestamp); \
++        char processName[256]; \
++        char CmdLine[512]; \
++        char parentCmdLine[512]; \
++        char logMsg[LOG_MSG_SIZE]; \
++        getCurrentProcessName(processName); \
++        get_cmdline(CmdLine, sizeof(CmdLine), getpid()); \
++        get_cmdline(parentCmdLine, sizeof(parentCmdLine), getppid()); \
++        snprintf(logMsg, LOG_MSG_SIZE, "%ld.%06ld||%s||%d||%s||%d||%s||%s||%s||" valType, \
++            timestamp.tv_sec, timestamp.tv_nsec / 1000, \
++            processName, \
++            getpid(), \
++            CmdLine, \
++            getppid(), \
++            parentCmdLine, \
++            __func__, \
++            (name != NULL) ? name : "NULL", \
++            (val != NULL) ? val : "NULL"); \
++        /* Replace newline characters with '.' */ \
++        for (int i = 0; logMsg[i]; i++) { \
++            if (logMsg[i] == '\n') { \
++                logMsg[i] = '.'; \
++            } \
++        } \
++        FILE *logFile = fopen(SYSCFGLOG_FILE, "a"); \
++        if (logFile != NULL) { \
++            fprintf(logFile, "%s\n", logMsg); \
++            fclose(logFile); \
++        } \
++    } while(0)
++
++
+ /******************************************************************************
+  *                External syscfg library access apis
+  *****************************************************************************/
+@@ -168,6 +291,8 @@ int syscfg_get (const char *ns, const char *name, char *out_val, int outbufsz)
+         memcpy(out_val, val, len + 1);
+     }
+ 
++    SYSCFGLOGS(name, out_val);
++
+     return 0;
+ }
+ 
+@@ -187,6 +312,8 @@ int syscfg_get (const char *ns, const char *name, char *out_val, int outbufsz)
+  */
+ int syscfg_set_ns (const char *ns, const char *name, const char *value)
+ {
++    SYSCFGLOGS(name, value);
++
+     if (syscfg_initialized == 0) {
+         int rc = syscfg_init_internal();
+         if (rc != 0) {
+@@ -199,6 +326,8 @@ int syscfg_set_ns (const char *ns, const char *name, const char *value)
+ 
+ int syscfg_set_ns_commit (const char *ns, const char *name, const char *value)
+ {
++    SYSCFGLOGS(name, value);
++
+     int result = syscfg_set_ns (ns, name, value);
+     if (result == 0)
+         result = syscfg_commit();
+@@ -207,6 +336,8 @@ int syscfg_set_ns_commit (const char *ns, const char *name, const char *value)
+ 
+ int syscfg_set_ns_u (const char *ns, const char *name, unsigned long value)
+ {
++    SYSCFGLOGU(name, value);
++
+     char buf[sizeof(long)*3];
+     sprintf (buf, "%lu", value);
+     return syscfg_set_ns (ns, name, buf);
+@@ -214,6 +345,8 @@ int syscfg_set_ns_u (const char *ns, const char *name, unsigned long value)
+ 
+ int syscfg_set_ns_u_commit (const char *ns, const char *name, unsigned long value)
+ {
++    SYSCFGLOGU(name, NULL);
++
+     int result = syscfg_set_ns_u (ns, name, value);
+     if (result == 0)
+         result = syscfg_commit();
+@@ -222,21 +355,29 @@ int syscfg_set_ns_u_commit (const char *ns, const char *name, unsigned long valu
+ 
+ int syscfg_set_nns (const char *name, const char *value)
+ {
++    SYSCFGLOGS(name, value);
++
+     return syscfg_set_ns (NULL, name, value);
+ }
+ 
+ int syscfg_set_nns_commit (const char *name, const char *value)
+ {
++    SYSCFGLOGS(name, value);
++
+     return syscfg_set_ns_commit (NULL, name, value);
+ }
+ 
+ int syscfg_set_nns_u (const char *name, unsigned long value)
+ {
++    SYSCFGLOGU(name, NULL);
++
+     return syscfg_set_ns_u (NULL, name, value);
+ }
+ 
+ int syscfg_set_nns_u_commit (const char *name, unsigned long value)
+ {
++    SYSCFGLOGU(name, NULL);
++
+     return syscfg_set_ns_u_commit (NULL, name, value);
+ }
+ 
+@@ -255,6 +396,8 @@ int syscfg_set_nns_u_commit (const char *name, unsigned long value)
+  */
+ int syscfg_getall (char *buf, int bufsz, int *outsz)
+ {
++    SYSCFGLOGS(NULL, NULL);
++
+     if (syscfg_initialized == 0) {
+         int rc = syscfg_init_internal();
+         if (rc != 0) {
+@@ -304,6 +447,8 @@ int syscfg_getall2 (char *buf, size_t bufsz, size_t *outsz)
+  */
+ int syscfg_unset (const char *ns, const char *name)
+ {
++    SYSCFGLOGS(name, NULL);
++
+     if (syscfg_initialized == 0) {
+         int rc = syscfg_init_internal();
+         if (rc != 0) {
+@@ -327,6 +472,8 @@ int syscfg_unset (const char *ns, const char *name)
+  */
+ int syscfg_getsz (long int *used_sz, long int *max_sz)
+ {
++    SYSCFGLOGS(NULL, NULL);
++
+     if (syscfg_initialized == 0) {
+         int rc = syscfg_init_internal();
+         if (rc != 0) {
+@@ -394,6 +541,8 @@ int syscfg_commit2 (void)
+  */
+ void syscfg_destroy (void)
+ {
++    SYSCFGLOGS(NULL, NULL);
++
+     if (syscfg_initialized == 0) {
+         int rc = syscfg_init_internal();
+         if (rc != 0) {
+@@ -586,6 +735,8 @@ int syscfg_create (const char *file, long int max_file_sz)
+  */
+ static int syscfg_init_internal (void)
+ {
++    SYSCFGLOGS(NULL, NULL);
++
+     syscfg_shm_ctx *ctx;
+     int rc;
+ 
+-- 
+2.25.1
+

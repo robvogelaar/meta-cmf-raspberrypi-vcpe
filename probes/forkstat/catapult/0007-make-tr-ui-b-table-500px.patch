@@ -1,0 +1,25 @@
+From d497070021504ba7004bbe733e6b7a584f7f0e3c Mon Sep 17 00:00:00 2001
+From: Rob Vogelaar <revogelaar@gmail.com>
+Date: Fri, 26 Mar 2021 17:14:35 -0700
+Subject: [PATCH 7/9] make tr-ui-b-table 500px
+
+Signed-off-by: Rob Vogelaar <revogelaar@gmail.com>
+---
+ tracing/tracing/ui/base/table.html | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tracing/tracing/ui/base/table.html b/tracing/tracing/ui/base/table.html
+index 3d707fb4b..5bf9117ed 100644
+--- a/tracing/tracing/ui/base/table.html
++++ b/tracing/tracing/ui/base/table.html
+@@ -70,6 +70,7 @@ tr.exportTo('tr.ui.b', function() {
+         border-collapse: separate;
+         border-spacing: 0;
+         border-width: 0;
++        width: 500px;
+         -webkit-user-select: initial;
+       }
+ 
+-- 
+2.25.1
+

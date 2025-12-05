@@ -1,0 +1,33 @@
+From bef7b4e04c3951b4aaf5fd0f6b952b19ec7083c3 Mon Sep 17 00:00:00 2001
+From: Rob Vogelaar <revogelaar@gmail.com>
+Date: Tue, 23 Mar 2021 18:11:50 -0700
+Subject: [PATCH 2/9] customize codesearch
+
+Signed-off-by: Rob Vogelaar <revogelaar@gmail.com>
+---
+ tracing/tracing/ui/extras/chrome/codesearch.html | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/tracing/tracing/ui/extras/chrome/codesearch.html b/tracing/tracing/ui/extras/chrome/codesearch.html
+index af6c79447..26fa16107 100644
+--- a/tracing/tracing/ui/extras/chrome/codesearch.html
++++ b/tracing/tracing/ui/extras/chrome/codesearch.html
+@@ -31,9 +31,13 @@ tr.exportTo('tr.ui.e.chrome', function() {
+ 
+     set searchPhrase(phrase) {
+       const link = Polymer.dom(this.$.codesearchLink);
++
+       const codeSearchURL =
+-        'https://cs.chromium.org/search/?sq=package:chromium&type=cs&q=';
+-      link.setAttribute('href', codeSearchURL + encodeURIComponent(phrase));
++        'https://cs.chromium1.org/search/?sq=package:chromium&type=cs&q=';
++
++      //link.setAttribute('href', codeSearchURL + encodeURIComponent(phrase));
++      link.setAttribute('href', window.location.href.split('&cmd=')[0]+'&cmd=' + encodeURIComponent(phrase.split(':')[1]));
++
+     },
+ 
+     onClick(clickEvent) {
+-- 
+2.25.1
+

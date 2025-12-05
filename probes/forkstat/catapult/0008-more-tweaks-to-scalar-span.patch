@@ -1,0 +1,41 @@
+From cf3b65fa508f5b0401c29f34ad5ec928a23e3179 Mon Sep 17 00:00:00 2001
+From: Rob Vogelaar <revogelaar@gmail.com>
+Date: Fri, 26 Mar 2021 17:35:05 -0700
+Subject: [PATCH 8/9] more tweaks to scalar span
+
+Signed-off-by: Rob Vogelaar <revogelaar@gmail.com>
+---
+ tracing/tracing/ui/base/table.html        | 2 +-
+ tracing/tracing/value/ui/scalar_span.html | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/tracing/tracing/ui/base/table.html b/tracing/tracing/ui/base/table.html
+index 5bf9117ed..a701c6f95 100644
+--- a/tracing/tracing/ui/base/table.html
++++ b/tracing/tracing/ui/base/table.html
+@@ -70,7 +70,7 @@ tr.exportTo('tr.ui.b', function() {
+         border-collapse: separate;
+         border-spacing: 0;
+         border-width: 0;
+-        width: 500px;
++        width: 800px;
+         -webkit-user-select: initial;
+       }
+ 
+diff --git a/tracing/tracing/value/ui/scalar_span.html b/tracing/tracing/value/ui/scalar_span.html
+index 39e6dd0a1..5698cc352 100644
+--- a/tracing/tracing/value/ui/scalar_span.html
++++ b/tracing/tracing/value/ui/scalar_span.html
+@@ -95,7 +95,8 @@ tr.exportTo('tr.v.ui', function() {
+     :host {
+       display: flex;
+       flex-direction: row;
+-      justify-content: flex-end;
++      /*justify-content: flex-end;*/
++      justify-content: left;
+       position: relative;
+       /* Limit the sparkline's negative z-index to the span only. */
+       isolation: isolate;
+-- 
+2.25.1
+

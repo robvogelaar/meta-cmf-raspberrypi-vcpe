@@ -1,0 +1,32 @@
+From 533b28afea6f276983c93d18bef3fe13d4f34a81 Mon Sep 17 00:00:00 2001
+From: Rob Vogelaar <revogelaar@gmail.com>
+Date: Fri, 3 Nov 2023 15:28:37 -0700
+Subject: [PATCH] print the raw bytes to the traffic log for msgunpack
+
+Signed-off-by: Rob Vogelaar <revogelaar@gmail.com>
+---
+ src/rtmessage/rtrouted.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/rtmessage/rtrouted.c b/src/rtmessage/rtrouted.c
+index 5fff384..646b710 100644
+--- a/src/rtmessage/rtrouted.c
++++ b/src/rtmessage/rtrouted.c
+@@ -611,7 +611,14 @@ rtError rtRouted_TrafficMonitorLog(rtConnectedClient* sender, rtMessageHeader* h
+       isprint = 0;
+       fprintf(file, "\"");
+     }
++
++    fprintf(file, "]||");
++    for(i = 0; i < n; ++i) {
++      fprintf(file, " 0x%x ", buff[i]);
++    }
++    fprintf(file, "||");
+   }
++
+   fprintf(file, "]\n");
+   fflush(file);
+   return RT_OK;
+-- 
+2.25.1
+
