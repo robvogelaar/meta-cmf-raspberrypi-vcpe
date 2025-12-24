@@ -614,53 +614,115 @@ get_eth_interface() {
 
 
 check_and_create_virt_wlan() {
-    # Define the expected interfaces
-
-    local interfaces_vcpe=("virt-wlan0" "virt-wlan1" "virt-wlan2" "virt-wlan3")
+    # Usage: check_and_create_virt_wlan [suffix]
+    # suffix: optional, e.g., "001", "002" for vcpe-001, vcpe-002
+    # If no suffix, creates interfaces for base vcpe (virt-wlan1-4)
+    local suffix="$1"
+    local offset=0
     local missing=0
 
-    if [ "$(lxc list vcpe --format csv -c ns | awk -F',' '{print $2}')" = "RUNNING" ]; then
-        : # vcpe is running, the wlan interfaces have been mapped into vpce container
-    else
-        : # vcpe is not running
-        # Check each interface
-        for iface in "${interfaces_vcpe[@]}"; do
+    if [ -n "$suffix" ]; then
+        offset=$((10#$suffix))
+        # Check for suffixed interfaces
+        local interfaces=("virt-wlan0-${suffix}" "virt-wlan1-${suffix}" "virt-wlan2-${suffix}" "virt-wlan3-${suffix}")
+        for iface in "${interfaces[@]}"; do
             if ! ip link show "$iface" &>/dev/null; then
                 missing=$((missing + 1))
             fi
         done
+    else
+        # Check for base vcpe interfaces (virt-wlan1-4)
+        if [ "$(lxc list vcpe --format csv -c ns 2>/dev/null | awk -F',' '{print $2}')" = "RUNNING" ]; then
+            : # vcpe is running, interfaces are mapped into container
+        else
+            for i in {1..4}; do
+                if ! ip link show "virt-wlan$i" &>/dev/null; then
+                    missing=$((missing + 1))
+                fi
+            done
+        fi
     fi
 
+    # If all interfaces exist, nothing to do
+    [ $missing -eq 0 ] && return 0
 
-    # If any interfaces are missing, create them
-    if [ $missing -gt 0 ]; then
-        echo "Virtual wlan interfaces are missing. Creating virtual wlan interfaces now..."
+    if false; then echo "Creating virtual wlan interfaces..."; fi
 
-        # Check if mac80211_hwsim is already loaded
-        if lsmod | grep -q "mac80211_hwsim"; then
-            echo "Unloading mac80211_hwsim module..."
-            sudo modprobe -r mac80211_hwsim
-        fi
+    # Determine how many radios we need
+    # Base: 5 radios (virt-wlan0 for client, virt-wlan1-4 for base vcpe)
+    # Each suffixed instance needs 4 more
+    local needed_radios=5
+    local max_suffix=0
 
-        # Load the module with 5 radios
-        echo "Loading mac80211_hwsim with 5 radios..."
-        sudo modprobe mac80211_hwsim radios=5
+    # If we have a suffix, that's at least our max
+    [ $offset -gt $max_suffix ] && max_suffix=$offset
 
-        # Wait a moment for interfaces to be created
+    # Find highest existing suffixed interface
+    for iface in $(ip link show 2>/dev/null | grep -oE 'virt-wlan[0-3]-[0-9]{3}' | sort -u); do
+        local suf="${iface##*-}"
+        local suf_num=$((10#$suf))
+        [ $suf_num -gt $max_suffix ] && max_suffix=$suf_num
+    done
+
+    # Check for existing vcpe-XXX containers
+    for container in $(lxc list -c n --format csv 2>/dev/null | grep -E '^vcpe-[0-9]{3}$'); do
+        local suf="${container##*-}"
+        local suf_num=$((10#$suf))
+        [ $suf_num -gt $max_suffix ] && max_suffix=$suf_num
+    done
+
+    if [ $max_suffix -gt 0 ]; then
+        needed_radios=$((5 + max_suffix * 4))
+    fi
+
+    # Check current radios
+    local current_radios=$(ls -1d /sys/class/ieee80211/phy* 2>/dev/null | wc -l)
+
+    if [ $current_radios -lt $needed_radios ]; then
+        if false; then echo "Loading mac80211_hwsim with ${needed_radios} radios..."; fi
+        sudo modprobe -r mac80211_hwsim 2>/dev/null || true
+        sudo modprobe mac80211_hwsim radios=${needed_radios}
         sleep 1
 
-        # Rename the interfaces
+        # After reload, rename all interfaces
+        # Base: wlan0 -> virt-wlan0 (client), wlan1-4 -> virt-wlan1-4 (base vcpe)
         for i in {0..4}; do
             if ip link show "wlan$i" &>/dev/null; then
-                echo "Renaming wlan$i to virt-wlan$i"
-                sudo ip link set "wlan$i" down
-                sudo ip link set "wlan$i" name "virt-wlan$i"
-                sudo ip link set "virt-wlan$i" up
-            else
-                echo "Warning: wlan$i was not created by mac80211_hwsim"
+                if false; then echo "Renaming wlan$i to virt-wlan$i"; fi
+                sudo ip link set "wlan$i" down 2>/dev/null || true
+                sudo ip link set "wlan$i" name "virt-wlan$i" 2>/dev/null || true
+                sudo ip link set "virt-wlan$i" up 2>/dev/null || true
             fi
         done
 
+        # Rename all suffixed instances
+        for inst in $(seq 1 $max_suffix); do
+            local inst_suffix=$(printf "%03d" $inst)
+            local inst_radio_offset=$((5 + (inst - 1) * 4))
+            for i in {0..3}; do
+                local wlan_idx=$((inst_radio_offset + i))
+                local new_name="virt-wlan${i}-${inst_suffix}"
+                if ip link show "wlan${wlan_idx}" &>/dev/null; then
+                    if false; then echo "Renaming wlan${wlan_idx} to ${new_name}"; fi
+                    sudo ip link set "wlan${wlan_idx}" down 2>/dev/null || true
+                    sudo ip link set "wlan${wlan_idx}" name "${new_name}" 2>/dev/null || true
+                    sudo ip link set "${new_name}" up 2>/dev/null || true
+                fi
+            done
+        done
+    elif [ -n "$suffix" ]; then
+        # No reload needed, just rename interfaces for this suffix
+        local radio_offset=$((5 + (offset - 1) * 4))
+        for i in {0..3}; do
+            local wlan_idx=$((radio_offset + i))
+            local new_name="virt-wlan${i}-${suffix}"
+            if ip link show "wlan${wlan_idx}" &>/dev/null; then
+                if false; then echo "Renaming wlan${wlan_idx} to ${new_name}"; fi
+                sudo ip link set "wlan${wlan_idx}" down 2>/dev/null || true
+                sudo ip link set "wlan${wlan_idx}" name "${new_name}" 2>/dev/null || true
+                sudo ip link set "${new_name}" up 2>/dev/null || true
+            fi
+        done
     fi
 }
 
