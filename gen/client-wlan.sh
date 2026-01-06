@@ -26,7 +26,7 @@ lxc profile set "${profile_name}" limits.cpu=1
 # Create devices
 ###lxc profile device add "${profile_name}" eth0 nic nictype=bridged parent=lxdbr0
 lxc profile device add "${profile_name}" root disk path=/ pool=default
-lxc profile device add "${profile_name}" wlan0 nic nictype=physical parent=virt-wlan4 name=wlan0
+lxc profile device add "${profile_name}" wlan0 nic nictype=physical parent=virt-wlan0 name=wlan0
 
 # Launch container using client-base image
 lxc launch "client-base" "${container_name}" "--profile=${profile_name}"

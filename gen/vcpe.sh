@@ -4,15 +4,17 @@ source gen-util.sh
 
 # Defaults
 wan_bridge="wan"
+lan_bridge="lan-p1"
 
 # Need at least image
 if [ "$#" -lt 1 ]; then
-    echo "Usage: $0 <image> [suffix] [-b|--wan-bridge <bridge>]"
+    echo "Usage: $0 <image> [suffix] [-b|--wan-bridge <bridge>] [-l|--lan-bridge <bridge>]"
     echo "Example: $0 image.tar.bz2 001"
-    echo "Example: $0 image.tar.bz2 001 -b br-wan106"
+    echo "Example: $0 image.tar.bz2 001 -b br-wan106 -l br-lan206"
     echo "  Creates container: vcpe-001, profile: vcpe-001, volume: vcpe-001-nvram"
     echo "Options:"
     echo "  -b, --wan-bridge <bridge>  Bridge for WAN interface (default: wan)"
+    echo "  -l, --lan-bridge <bridge>  Bridge for LAN interface (default: lan-p1)"
     exit 1
 fi
 
@@ -32,6 +34,10 @@ while [ $# -gt 0 ]; do
     case "$1" in
         -b|--wan-bridge)
             wan_bridge="$2"
+            shift 2
+            ;;
+        -l|--lan-bridge)
+            lan_bridge="$2"
             shift 2
             ;;
         *)
@@ -59,8 +65,9 @@ if [ -n "$suffix" ]; then
     fi
 fi
 
-# Check if imagefile matches SCP URL pattern (user@host:)
-if [[ $imagefile =~ ^[^@]+@[^:]+:.+ ]]; then
+# Check if imagefile matches SCP URL pattern (user@host:path or host:path)
+# Skip if it's clearly a local path (starts with /, ./, or ../)
+if [[ ! $imagefile =~ ^\.?\.?/ ]] && [[ $imagefile =~ ^([^@/:]+@)?[a-zA-Z0-9][-a-zA-Z0-9.]*:.+ ]]; then
     mkdir -p ./tmp
     # Extract filename from path
     filename="${imagefile##*/}"
@@ -115,70 +122,26 @@ fi
 lxc delete ${containername} -f 2>/dev/null
 
 
-#
-sudo bridge vlan add vid $vlan_id dev lan-p1 self
-
-# Create virtual wlan interfaces if suffix is provided
-if [ -n "$suffix" ]; then
-    # Create unique virt-wlan interfaces for this instance
-    wlan_interfaces=("virt-wlan0-${suffix}" "virt-wlan1-${suffix}" "virt-wlan2-${suffix}" "virt-wlan3-${suffix}")
-    missing_wlan=0
-
-    # Check if any wlan interfaces are missing
-    for iface in "${wlan_interfaces[@]}"; do
-        if ! ip link show "$iface" &>/dev/null; then
-            missing_wlan=$((missing_wlan + 1))
-        fi
-    done
-
-    # Create interfaces if missing
-    if [ $missing_wlan -gt 0 ]; then
-        echo "Creating virtual wlan interfaces for ${containername}..."
-
-        # Calculate radio offset (base offset + 4 wlan interfaces per instance)
-        # For suffix 001: radios 5-8, for 002: radios 9-12, etc.
-        radio_offset=$((5 + (offset - 1) * 4))
-
-        # Check current number of radios
-        current_radios=$(ls -1d /sys/class/ieee80211/phy* 2>/dev/null | wc -l)
-        needed_radios=$((radio_offset + 4))
-
-        if [ $current_radios -lt $needed_radios ]; then
-            echo "Recreating mac80211_hwsim module with ${needed_radios} radios..."
-            # Unload if loaded
-            sudo modprobe -r mac80211_hwsim 2>/dev/null || true
-            # Load with enough radios for all instances
-            sudo modprobe mac80211_hwsim radios=${needed_radios}
-            sleep 1
-        fi
-
-        # Rename the interfaces for this suffix
-        for i in {0..3}; do
-            wlan_idx=$((radio_offset + i))
-            new_name="virt-wlan${i}-${suffix}"
-
-            if ip link show "wlan${wlan_idx}" &>/dev/null; then
-                echo "Renaming wlan${wlan_idx} to ${new_name}"
-                sudo ip link set "wlan${wlan_idx}" down 2>/dev/null || true
-                sudo ip link set "wlan${wlan_idx}" name "${new_name}" 2>/dev/null || true
-                sudo ip link set "${new_name}" up 2>/dev/null || true
-            else
-                echo "Warning: wlan${wlan_idx} not found, may have been renamed already"
-            fi
-        done
-    fi
-else
-    # Use the standard check_and_create_virt_wlan for base vcpe
-    check_and_create_virt_wlan
+# Add VLAN to bridge (only for default lan-p* bridges)
+if [[ $lan_bridge == lan-p* ]]; then
+    sudo bridge vlan add vid $vlan_id dev $lan_bridge self
 fi
+
+# Create virtual wlan interfaces
+check_and_create_virt_wlan "$suffix"
 
 # Nvram
 if ! lxc storage volume show default $volumename > /dev/null 2>&1; then
     lxc storage volume create default $volumename size=4MiB
 fi
 
-lxc image delete ${imagename} 2> /dev/null
-lxc image import $imagefile --alias ${imagename}
+# Import image - always overwrite
+lxc image delete ${imagename} 2>/dev/null
+lxc image import $imagefile --alias ${imagename} 2>/dev/null || {
+    # Same fingerprint exists - delete rdkb images and retry
+    lxc image list --format=csv | grep rdkb | cut -d, -f2 | xargs -r -n1 lxc image delete 2>/dev/null || true
+    lxc image import $imagefile --alias ${imagename}
+}
 
 # Profile - always use base vcpe.yaml as template
 lxc profile create "$profilename" 2>/dev/null || true
@@ -186,7 +149,7 @@ lxc profile edit "$profilename" < "$M_ROOT/gen/profiles/vcpe.yaml"
 
 # Remove wlan devices from profile (we'll add them back with correct parent names)
 for i in {0..3}; do
-    lxc profile device remove "$profilename" "wlan${i}" 2>/dev/null || true
+    lxc profile device remove "$profilename" "wlan${i}" > /dev/null 2>&1 || true
 done
 
 # eth0 interface
@@ -198,13 +161,22 @@ lxc profile device add "$profilename" eth0 nic \
     > /dev/null
 
 # eth1 interface
-lxc profile device add "$profilename" eth1 nic \
-    nictype=bridged \
-    parent=lan-p1 \
-    hwaddr=$eth1_mac \
-    name=eth1 \
-    vlan=$vlan_id \
-    > /dev/null
+if [[ $lan_bridge == lan-p* ]]; then
+    lxc profile device add "$profilename" eth1 nic \
+        nictype=bridged \
+        parent=$lan_bridge \
+        hwaddr=$eth1_mac \
+        name=eth1 \
+        vlan=$vlan_id \
+        > /dev/null
+else
+    lxc profile device add "$profilename" eth1 nic \
+        nictype=bridged \
+        parent=$lan_bridge \
+        hwaddr=$eth1_mac \
+        name=eth1 \
+        > /dev/null
+fi
 
 
 # Attach nvram volume to profile
@@ -225,11 +197,11 @@ if [ -n "$suffix" ]; then
             > /dev/null 2>&1 || true
     done
 else
-    # Add standard wlan interfaces for base vcpe
+    # Add standard wlan interfaces for base vcpe (virt-wlan1-4, since virt-wlan0 is for client)
     for i in {0..3}; do
         lxc profile device add "$profilename" "wlan${i}" nic \
             nictype=physical \
-            parent="virt-wlan${i}" \
+            parent="virt-wlan$((i + 1))" \
             name="wlan${i}" \
             type=nic \
             > /dev/null 2>&1 || true

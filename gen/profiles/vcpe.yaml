@@ -23,20 +23,20 @@ devices:
   wlan0:
     name: wlan0
     nictype: physical
-    parent: virt-wlan0
+    parent: virt-wlan1
     type: nic
   wlan1:
     name: wlan1
     nictype: physical
-    parent: virt-wlan1
+    parent: virt-wlan2
     type: nic
   wlan2:
     name: wlan2
     nictype: physical
-    parent: virt-wlan2
+    parent: virt-wlan3
     type: nic
   wlan3:
     name: wlan3
     nictype: physical
-    parent: virt-wlan3
+    parent: virt-wlan4
     type: nic
