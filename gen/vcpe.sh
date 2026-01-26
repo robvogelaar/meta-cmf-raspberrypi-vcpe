@@ -179,11 +179,12 @@ else
 fi
 
 
-# Attach nvram volume to profile
+# Attach nvram volume to profile (remove first since base profile has hardcoded source)
+lxc profile device remove "$profilename" nvram > /dev/null 2>&1 || true
 lxc profile device add "$profilename" nvram disk \
+    pool=default \
     source=$volumename \
-    path=/nvram \
-    > /dev/null 2>&1 || true
+    path=/nvram
 
 # Add wlan interfaces with appropriate parent names
 if [ -n "$suffix" ]; then
