@@ -10,11 +10,6 @@ config:
   security.nesting: "true"
   security.privileged: "true"
 devices:
-  nvram:
-    path: /nvram
-    pool: default
-    source: vcpe-nvram
-    type: disk
   root:
     path: /
     pool: default
