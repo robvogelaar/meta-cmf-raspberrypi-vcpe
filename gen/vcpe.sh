@@ -132,7 +132,7 @@ check_and_create_virt_wlan "$suffix"
 
 # Nvram
 if ! lxc storage volume show default $volumename > /dev/null 2>&1; then
-    lxc storage volume create default $volumename size=4MiB
+    lxc storage volume create default $volumename size=64MiB
 fi
 
 # Import image - always overwrite
